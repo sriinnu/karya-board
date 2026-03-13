@@ -1,0 +1,46 @@
+{
+  "name": "@karya/core",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Core business logic for Karya - DB, scanner, and board generation",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./db": {
+      "import": "./dist/db/index.js",
+      "types": "./dist/db/index.d.ts"
+    },
+    "./scanner": {
+      "import": "./dist/scanner/index.js",
+      "types": "./dist/scanner/index.d.ts"
+    },
+    "./board-gen": {
+      "import": "./dist/board-gen/index.js",
+      "types": "./dist/board-gen/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test $(find src -name '*.test.ts' -print)",
+    "db:migrate": "tsx src/db/migrate.ts",
+    "scanner:start": "tsx src/runtime.ts"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.6.2",
+    "chokidar": "^3.5.3",
+    "p-queue": "^8.0.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.8",
+    "@types/node": "^20.10.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}

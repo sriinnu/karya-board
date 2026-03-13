@@ -1,0 +1,39 @@
+{
+  "name": "@karya/mcp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MCP server for Karya - exposes tools for Claude Code integration",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./http": {
+      "import": "./dist/http.js",
+      "types": "./dist/http.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "pnpm --filter @karya/core run build && tsc --noEmit",
+    "test": "tsx --test src/**/*.test.ts",
+    "start": "tsx src/index.ts",
+    "api:start": "tsx src/http.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0",
+    "@karya/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  },
+  "peerDependencies": {
+    "@karya/core": "workspace:*"
+  }
+}

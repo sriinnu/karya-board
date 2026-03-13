@@ -1,0 +1,49 @@
+{
+  "name": "karya",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local AI-powered task board that reads your codebase and generates actionable tasks",
+  "packageManager": "pnpm@9.0.0",
+  "type": "module",
+  "bin": {
+    "karya": "./dist/cli.js"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel -r run dev",
+    "app:dev": "pnpm --parallel api:start ui:dev",
+    "build": "pnpm -r run build && tsc -p tsconfig.cli.json",
+    "typecheck": "pnpm -r run typecheck && tsc -p tsconfig.cli.json --noEmit",
+    "test": "pnpm test:root && pnpm test:packages",
+    "test:root": "files=$(find src \\( -name '*.test.ts' -o -name '*.test.tsx' \\) -print); if [ -n \"$files\" ]; then node --import tsx --test $files; else echo 'No root tests'; fi",
+    "test:packages": "pnpm --filter @karya/core run test && pnpm --filter @karya/mcp run test && pnpm --filter @karya/ui run test:run",
+    "smoke": "node ./scripts/smoke-api.mjs",
+    "verify": "pnpm typecheck && pnpm build && pnpm test && pnpm smoke",
+    "karya": "tsx src/cli.ts",
+    "api:start": "pnpm --filter @karya/mcp run api:start",
+    "db:migrate": "pnpm --filter @karya/core run db:migrate",
+    "scanner:start": "pnpm --filter @karya/core run scanner:start",
+    "mcp:start": "pnpm --filter @karya/mcp run start",
+    "ui:dev": "pnpm --filter @karya/ui run dev"
+  },
+  "keywords": [
+    "task-board",
+    "ai",
+    "claude",
+    "mcp",
+    "todo",
+    "productivity"
+  ],
+  "author": "Sriinnu",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@karya/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.3.3"
+  }
+}

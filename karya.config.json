@@ -1,0 +1,20 @@
+{
+  "$schema": "./karya.config.schema.json",
+  "projects": [
+    {
+      "name": "karya-board",
+      "path": ".",
+      "include": ["README.md", "TODO.md", "TODOS.md", "ARCHITECTURE.md"],
+      "exclude": ["node_modules", ".git", "dist", "build"]
+    }
+  ],
+  "boardOutput": "./BOARD.md",
+  "scanDepth": 3,
+  "scanner": {
+    "debounceMs": 500,
+    "fileSizeLimitMb": 10
+  },
+  "database": {
+    "path": "./karya.db"
+  }
+}

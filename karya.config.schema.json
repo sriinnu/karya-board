@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Karya Configuration",
+  "type": "object",
+  "required": ["projects"],
+  "properties": {
+    "projects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "path"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Display name for the project"
+          },
+          "path": {
+            "type": "string",
+            "description": "Absolute or relative path to the project directory"
+          },
+          "include": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "File patterns to include when scanning"
+          },
+          "exclude": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "File patterns to exclude when scanning"
+          }
+        }
+      }
+    },
+    "boardOutput": {
+      "type": "string",
+      "description": "Path where BOARD.md will be generated"
+    },
+    "scanDepth": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 10,
+      "description": "Maximum directory depth for scanning"
+    },
+    "scanner": {
+      "type": "object",
+      "properties": {
+        "debounceMs": {
+          "type": "number",
+          "minimum": 100,
+          "maximum": 5000
+        },
+        "fileSizeLimitMb": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 100
+        }
+      }
+    },
+    "database": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Path to SQLite database file"
+        }
+      }
+    }
+  }
+}

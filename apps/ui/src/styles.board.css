@@ -1,0 +1,365 @@
+/**
+ * I style the board-level surfaces, hero, filters, and section framing here.
+ * @packageDocumentation
+ */
+
+.surface-stack {
+  display: grid;
+  gap: var(--space-lg);
+}
+
+.surface-panel {
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  animation: lift-in var(--transition-medium);
+}
+
+.hero-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 1fr);
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+.hero-copy {
+  display: grid;
+  gap: 12px;
+}
+
+.hero-title {
+  font-size: clamp(2rem, 4vw, 3.15rem);
+  line-height: 0.98;
+  letter-spacing: -0.06em;
+}
+
+.hero-description {
+  max-width: 640px;
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.hero-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metric-card {
+  padding: 16px;
+  border-radius: 22px;
+}
+
+.metric-label {
+  color: var(--color-text-tertiary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.metric-value {
+  display: block;
+  margin-top: 10px;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.06em;
+}
+
+.metric-note {
+  display: block;
+  margin-top: 6px;
+  color: var(--color-text-secondary);
+  font-size: 0.86rem;
+}
+
+.control-bar {
+  display: grid;
+  gap: 16px;
+}
+
+.control-search {
+  position: relative;
+}
+
+.control-search svg {
+  position: absolute;
+  top: 50%;
+  left: 16px;
+  width: 18px;
+  height: 18px;
+  color: var(--color-text-tertiary);
+  transform: translateY(-50%);
+}
+
+.control-search-input,
+.input,
+.textarea,
+.select {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 16px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 18px;
+  background: var(--color-surface-strong);
+  color: var(--color-text-primary);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.control-search-input {
+  padding-left: 46px;
+  font-size: 0.95rem;
+}
+
+.control-search-input:focus,
+.input:focus,
+.textarea:focus,
+.select:focus {
+  border-color: rgba(0, 113, 227, 0.34);
+  box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.12);
+  background: #fff;
+}
+
+.control-groups {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.filter-group {
+  display: grid;
+  gap: 10px;
+}
+
+.segment {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.segment-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid rgba(17, 24, 39, 0.06);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.74);
+  color: var(--color-text-secondary);
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color var(--transition-fast),
+    background var(--transition-medium),
+    color var(--transition-medium),
+    transform var(--transition-fast);
+}
+
+.segment-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(17, 24, 39, 0.12);
+  color: var(--color-text-primary);
+}
+
+.segment-button.active {
+  border-color: rgba(0, 113, 227, 0.16);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-strong);
+}
+
+.segment-button:focus-visible {
+  border-color: rgba(0, 113, 227, 0.38);
+  box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.12);
+}
+
+.board-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.board-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  color: var(--color-text-secondary);
+  font-size: 0.92rem;
+}
+
+.text-button {
+  color: var(--color-accent-strong);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.text-button:focus-visible {
+  border-radius: 8px;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pagination-label {
+  min-width: 124px;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.lane {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+  border-radius: 28px;
+}
+
+.lane-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.lane-title-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.lane-marker {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.lane-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.lane-description {
+  margin-top: 4px;
+  color: var(--color-text-secondary);
+  font-size: 0.92rem;
+}
+
+.lane-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.05);
+  color: var(--color-text-secondary);
+  font-weight: 700;
+}
+
+.lane-critical .lane-marker {
+  background: var(--color-critical);
+}
+
+.lane-high .lane-marker {
+  background: var(--color-high);
+}
+
+.lane-medium .lane-marker {
+  background: var(--color-medium);
+}
+
+.lane-low .lane-marker,
+.lane-done .lane-marker {
+  background: var(--color-low);
+}
+
+.done-lane-toggle {
+  cursor: pointer;
+}
+
+.lane-chevron {
+  color: var(--color-text-tertiary);
+  transition: transform var(--transition-medium);
+}
+
+.done-lane[open] .lane-chevron {
+  transform: rotate(90deg);
+}
+
+@media (max-width: 1100px) {
+  .hero-panel,
+  .control-groups {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 860px) {
+  .surface-panel {
+    padding: 18px;
+  }
+
+  .board-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pagination {
+    width: 100%;
+  }
+
+  .pagination .btn {
+    flex: 1 1 0%;
+  }
+
+  .hero-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-title {
+    font-size: 2.15rem;
+  }
+
+  .hero-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .lane {
+    padding: 18px 16px;
+  }
+
+  .lane-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .pagination {
+    flex-wrap: wrap;
+  }
+
+  .pagination-label {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .segment {
+    width: 100%;
+  }
+
+  .segment-button {
+    flex: 1 1 auto;
+  }
+}
