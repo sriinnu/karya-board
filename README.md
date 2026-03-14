@@ -2,7 +2,7 @@
 
 Spanda is the calm operating surface for Karya, a local-first issue board that scans your repo, stores state in SQLite, regenerates `BOARD.md`, and exposes the same workflow through the web UI, CLI, HTTP API, and MCP tools.
 
-![Spanda mark](docs/karya.svg)
+<img src="docs/karya.svg" alt="Spanda mark" width="180" />
 
 `Karya` is still the runtime name in the codebase.
 `Spanda` is the front-facing product surface and the main UI experience.
