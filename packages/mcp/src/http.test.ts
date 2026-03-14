@@ -50,6 +50,52 @@ interface IssuesPayload {
   error?: string;
 }
 
+interface AiStatusPayload {
+  success: boolean;
+  available: boolean;
+  defaultProvider: 'anthropic' | 'openai' | null;
+  providers: Array<{
+    provider: 'anthropic' | 'openai';
+    label: string;
+    available: boolean;
+    defaultModel: string | null;
+    reason?: string;
+    requestLimit: number;
+    requestWindowMs: number;
+  }>;
+}
+
+interface AiSuggestRequest {
+  projectId: string;
+  prompt?: string;
+  provider?: 'anthropic' | 'openai';
+  model?: string;
+  maxSuggestions?: number;
+}
+
+interface AiSuggestPayload {
+  success: boolean;
+  available: boolean;
+  provider: 'anthropic' | 'openai' | null;
+  providerLabel?: string;
+  model: string | null;
+  suggestions?: Array<{
+    title: string;
+    description: string;
+    priority: string;
+    rationale: string;
+  }>;
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens?: number;
+    cacheCreationTokens?: number;
+    cacheReadTokens?: number;
+  };
+  warning?: string;
+  error?: string;
+}
+
 /**
  * Verifies successful mutations remain successful when BOARD sync fails.
  */
@@ -153,6 +199,152 @@ test('I apply project, status, priority, search, limit, and offset filters on li
     assert.equal(pageTwo.payload.issues[0]?.status, 'open');
     assert.equal(pageTwo.payload.issues[0]?.priority, 'high');
     assert.notEqual(pageOne.payload.issues[0]?.id, pageTwo.payload.issues[0]?.id);
+  } finally {
+    await cleanupFixture(fixture);
+  }
+});
+
+/**
+ * Verifies provider-neutral AI status and suggest-only review routes.
+ */
+test('I expose provider-neutral AI status and safe suggestion routes without implicit writes', async () => {
+  const fixture = await createFixture();
+
+  try {
+    const aiCalls: AiSuggestRequest[] = [];
+    const apiServer = fixture.server as unknown as {
+      aiSuggester: {
+        getStatus: () => Omit<AiStatusPayload, 'success'>;
+        suggestIssues: (params: AiSuggestRequest) => Promise<AiSuggestPayload>;
+      };
+    };
+    apiServer.aiSuggester = {
+      getStatus: () => ({
+        available: true,
+        defaultProvider: 'openai',
+        providers: [
+          {
+            provider: 'anthropic',
+            label: 'Anthropic',
+            available: false,
+            defaultModel: null,
+            reason: 'Set ANTHROPIC_API_KEY to enable Anthropic issue suggestions.',
+            requestLimit: 6,
+            requestWindowMs: 60_000,
+          },
+          {
+            provider: 'openai',
+            label: 'OpenAI',
+            available: true,
+            defaultModel: 'gpt-5.4',
+            requestLimit: 6,
+            requestWindowMs: 60_000,
+          },
+        ],
+      }),
+      suggestIssues: async (params) => {
+        aiCalls.push(params);
+        return {
+        success: true,
+        available: true,
+        provider: 'openai',
+        providerLabel: 'OpenAI',
+        model: 'gpt-5.4',
+        suggestions: [
+          {
+            title: `Review gap for ${params.projectId}`,
+            description: 'I suggest a missing test-hardening task.',
+            priority: 'high',
+            rationale: 'The current board does not track this missing regression coverage.',
+          },
+        ],
+        usage: { inputTokens: 123, outputTokens: 45, totalTokens: 168 },
+        };
+      },
+    };
+
+    const status = await requestJson<AiStatusPayload>(fixture.baseUrl, 'GET', '/api/ai/status');
+    assert.equal(status.status, 200);
+    assert.equal(status.payload.success, true);
+    assert.equal(status.payload.available, true);
+    assert.equal(status.payload.defaultProvider, 'openai');
+    assert.equal(status.payload.providers.length, 2);
+
+    const suggestions = await requestJson<AiSuggestPayload>(
+      fixture.baseUrl,
+      'POST',
+      '/api/ai/suggest-issues',
+      {
+        projectId: fixture.primaryProjectId,
+        provider: 'openai',
+        model: 'gpt-5.4',
+        prompt: 'Focus on missing tests.',
+      }
+    );
+    assert.equal(suggestions.status, 200);
+    assert.equal(suggestions.payload.success, true);
+    assert.equal(suggestions.payload.provider, 'openai');
+    assert.equal(suggestions.payload.suggestions?.length, 1);
+    assert.equal(suggestions.payload.usage?.inputTokens, 123);
+    assert.deepEqual(aiCalls, [
+      {
+        projectId: fixture.primaryProjectId,
+        provider: 'openai',
+        model: 'gpt-5.4',
+        prompt: 'Focus on missing tests.',
+        maxSuggestions: undefined,
+      },
+    ]);
+
+    const persisted = await requestJson<IssuesPayload>(fixture.baseUrl, 'GET', '/api/issues');
+    assert.equal(persisted.payload.totalCount, 0);
+  } finally {
+    await cleanupFixture(fixture);
+  }
+});
+
+/**
+ * Verifies invalid AI payloads fail fast with a 400 instead of reaching provider code.
+ */
+test('I reject invalid AI suggestion payloads before provider dispatch', async () => {
+  const fixture = await createFixture();
+
+  try {
+    const invalidProvider = await requestJson<{ success: boolean; error?: string }>(
+      fixture.baseUrl,
+      'POST',
+      '/api/ai/suggest-issues',
+      {
+        projectId: fixture.primaryProjectId,
+        provider: 'bogus',
+      }
+    );
+    assert.equal(invalidProvider.status, 400);
+    assert.match(invalidProvider.payload.error ?? '', /provider/i);
+
+    const invalidModel = await requestJson<{ success: boolean; error?: string }>(
+      fixture.baseUrl,
+      'POST',
+      '/api/ai/suggest-issues',
+      {
+        projectId: fixture.primaryProjectId,
+        model: 42,
+      }
+    );
+    assert.equal(invalidModel.status, 400);
+    assert.match(invalidModel.payload.error ?? '', /model/i);
+
+    const invalidSuggestionCount = await requestJson<{ success: boolean; error?: string }>(
+      fixture.baseUrl,
+      'POST',
+      '/api/ai/suggest-issues',
+      {
+        projectId: fixture.primaryProjectId,
+        maxSuggestions: 0,
+      }
+    );
+    assert.equal(invalidSuggestionCount.status, 400);
+    assert.match(invalidSuggestionCount.payload.error ?? '', /maxSuggestions/i);
   } finally {
     await cleanupFixture(fixture);
   }

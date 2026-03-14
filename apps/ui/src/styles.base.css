@@ -3,14 +3,59 @@
  * @packageDocumentation
  */
 
+@font-face {
+  font-family: 'Pacifico';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./assets/fonts/pacifico-400.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./assets/fonts/manrope-400.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./assets/fonts/manrope-600.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./assets/fonts/manrope-700.ttf') format('truetype');
+}
+
 :root {
   color-scheme: light;
-  --font-sans: 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
-  --color-canvas: #f4f5f7;
-  --color-canvas-strong: #eef1f5;
-  --color-surface: rgba(255, 255, 255, 0.84);
-  --color-surface-strong: rgba(255, 255, 255, 0.96);
-  --color-surface-muted: rgba(246, 247, 250, 0.92);
+  --font-script:
+    'Pacifico',
+    'Snell Roundhand',
+    'Apple Chancery',
+    'Segoe Script',
+    cursive;
+  --font-sans:
+    'Manrope',
+    'SF Pro Display',
+    'SF Pro Text',
+    'Helvetica Neue',
+    'Segoe UI',
+    'Arial',
+    sans-serif;
+  --color-canvas: #f2f4f8;
+  --color-canvas-strong: #ebeff5;
+  --color-surface: rgba(255, 255, 255, 0.86);
+  --color-surface-strong: rgba(255, 255, 255, 0.98);
+  --color-surface-muted: rgba(246, 248, 251, 0.94);
   --color-surface-border: rgba(15, 23, 42, 0.08);
   --color-surface-border-strong: rgba(15, 23, 42, 0.14);
   --color-text-primary: #111827;
@@ -30,8 +75,8 @@
   --color-progress: #5ac8fa;
   --color-progress-soft: rgba(90, 200, 250, 0.14);
   --color-shadow-soft: 0 24px 60px rgba(15, 23, 42, 0.08);
-  --color-shadow-card: 0 18px 36px rgba(15, 23, 42, 0.08);
-  --color-shadow-lift: 0 22px 40px rgba(15, 23, 42, 0.12);
+  --color-shadow-card: 0 22px 42px rgba(15, 23, 42, 0.08);
+  --color-shadow-lift: 0 28px 48px rgba(15, 23, 42, 0.12);
   --space-2xs: 4px;
   --space-xs: 8px;
   --space-sm: 12px;
@@ -93,11 +138,13 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, rgba(90, 200, 250, 0.12), transparent 30%),
-    radial-gradient(circle at 85% 15%, rgba(255, 159, 10, 0.12), transparent 24%),
-    linear-gradient(180deg, #f8f8fa 0%, var(--color-canvas) 100%);
+    radial-gradient(circle at top left, rgba(90, 200, 250, 0.11), transparent 28%),
+    radial-gradient(circle at 85% 12%, rgba(255, 159, 10, 0.1), transparent 22%),
+    radial-gradient(circle at 50% -4%, rgba(255, 255, 255, 0.9), transparent 34%),
+    linear-gradient(180deg, #fbfcfe 0%, var(--color-canvas) 100%);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
+  overflow-x: hidden;
 }
 
 body,

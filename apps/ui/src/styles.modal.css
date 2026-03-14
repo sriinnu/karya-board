@@ -4,7 +4,7 @@
  */
 
 .textarea {
-  min-height: 120px;
+  min-height: 140px;
   padding-top: 14px;
   padding-bottom: 14px;
   resize: vertical;
@@ -30,15 +30,28 @@
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgba(244, 245, 247, 0.58);
-  backdrop-filter: blur(18px);
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.66), transparent 36%),
+    rgba(240, 243, 247, 0.62);
+  backdrop-filter: blur(24px);
   animation: fade-in var(--transition-fast);
 }
 
 .modal {
-  width: min(720px, 100%);
-  border-radius: 32px;
+  width: min(820px, 100%);
+  max-height: calc(100vh - 48px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
+  border-radius: 34px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(246, 248, 252, 0.98) 100%);
+}
+
+.modal form {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 0;
 }
 
 .modal-header,
@@ -51,26 +64,68 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--space-md);
+  gap: 16px;
   border-bottom: 1px solid rgba(17, 24, 39, 0.06);
 }
 
 .modal-title {
   margin-top: 8px;
-  font-size: 1.7rem;
+  font-size: 1.82rem;
   font-weight: 700;
   letter-spacing: -0.05em;
 }
 
 .modal-subtitle {
   margin-top: 8px;
+  max-width: 620px;
   color: var(--color-text-secondary);
-  line-height: 1.55;
+  line-height: 1.6;
 }
 
 .modal-body {
   display: grid;
   gap: 16px;
+  overflow: auto;
+}
+
+.modal-summary-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.modal-summary-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(17, 24, 39, 0.06);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.modal-section {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border-radius: 26px;
+  border: 1px solid rgba(17, 24, 39, 0.06);
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.modal-section-heading {
+  display: grid;
+  gap: 6px;
+}
+
+.modal-section-copy {
+  color: var(--color-text-secondary);
+  line-height: 1.55;
 }
 
 .form-grid {
@@ -98,22 +153,81 @@
 .form-hint {
   color: var(--color-text-tertiary);
   font-size: 0.82rem;
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 .modal-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-md);
+  gap: 16px;
   border-top: 1px solid rgba(17, 24, 39, 0.06);
 }
 
 .modal-footnote {
-  max-width: 320px;
+  max-width: 360px;
   color: var(--color-text-tertiary);
   font-size: 0.82rem;
-  line-height: 1.45;
+  line-height: 1.5;
+}
+
+.modal-actions,
+.suggestion-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.notice-inline,
+.modal-loading-copy {
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--color-text-secondary);
+  line-height: 1.55;
+}
+
+.suggestion-list {
+  display: grid;
+  gap: 14px;
+}
+
+.suggestion-card {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.suggestion-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.suggestion-card-kicker {
+  color: var(--color-text-tertiary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.suggestion-card-title {
+  margin-top: 6px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.suggestion-card-copy,
+.suggestion-card-rationale {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
 }
 
 @media (max-width: 1100px) {
@@ -132,5 +246,15 @@
   .modal-footer {
     align-items: stretch;
     flex-direction: column;
+  }
+}
+
+@media (max-width: 640px) {
+  .modal-overlay {
+    padding: 12px;
+  }
+
+  .modal {
+    border-radius: 28px;
   }
 }

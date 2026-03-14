@@ -64,12 +64,18 @@ export function IssueCard({ issue }: IssueCardProps) {
   };
 
   return (
-    <article className={`issue-card ${isDone ? 'done' : ''} ${isPending ? 'pending' : ''}`}>
+    <article
+      className={`issue-card priority-${issue.priority} ${isDone ? 'done' : ''} ${isPending ? 'pending' : ''}`}
+    >
       <div className="issue-card-header">
         <div className="issue-card-signal">
-          <span className={`priority-dot priority-${issue.priority}`} aria-hidden="true" />
           <div className="flex-1">
-            <div className="issue-card-kicker">{issue.projectName ?? 'Manual Issue'}</div>
+            <div className="issue-card-meta-line">
+              <span className={`priority-dot priority-${issue.priority}`} aria-hidden="true" />
+              <span className="issue-card-kicker">{issue.projectName ?? 'Manual Issue'}</span>
+              <span className="issue-card-divider" aria-hidden="true" />
+              <span className="issue-timestamp">{formatRelativeTime(issue.updatedAt)}</span>
+            </div>
             <h3 className="issue-card-title">{issue.title}</h3>
           </div>
         </div>
@@ -115,7 +121,10 @@ export function IssueCard({ issue }: IssueCardProps) {
       </div>
 
       {issue.sourceFile && (
-        <div className="issue-source truncate">{issue.sourceFile}</div>
+        <div className="issue-source-row">
+          <span className="issue-source-label">Source</span>
+          <div className="issue-source truncate">{issue.sourceFile}</div>
+        </div>
       )}
 
       <div className="issue-card-footer">
@@ -126,6 +135,7 @@ export function IssueCard({ issue }: IssueCardProps) {
               type="button"
               className={`status-switch-button ${issue.status === option.value ? 'active' : ''}`}
               aria-pressed={issue.status === option.value}
+              aria-label={`Set issue status to ${option.label}`}
               onClick={() => {
                 void handleStatusChange(option.value);
               }}
@@ -135,8 +145,6 @@ export function IssueCard({ issue }: IssueCardProps) {
             </button>
           ))}
         </div>
-
-        <span className="issue-timestamp">{formatRelativeTime(issue.updatedAt)}</span>
       </div>
     </article>
   );

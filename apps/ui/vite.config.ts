@@ -1,6 +1,9 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
 import path from 'path';
+import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
+
+const devPort = Number(process.env.VITE_DEV_PORT ?? 9631);
+const apiPort = Number(process.env.VITE_KARYA_API_PORT ?? 9630);
 
 /**
  * Vite configuration for the Karya UI application.
@@ -15,11 +18,13 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
+    host: '127.0.0.1',
+    port: devPort,
+    strictPort: true,
     open: true,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:9630',
+        target: `http://127.0.0.1:${apiPort}`,
         changeOrigin: true,
       },
     },

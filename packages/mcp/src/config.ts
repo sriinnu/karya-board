@@ -18,13 +18,7 @@ import type { KaryaConfig } from '@karya/core';
  */
 export function loadKaryaConfig(configPath?: string): KaryaConfig {
   const requestedPath = configPath ?? process.env.KARYA_CONFIG ?? './karya.config.json';
-  const searchRoots = [
-    process.env.INIT_CWD,
-    process.cwd(),
-  ].filter((value): value is string => Boolean(value));
-  const resolvedPath = path.isAbsolute(requestedPath)
-    ? requestedPath
-    : resolveFromRoots(requestedPath, searchRoots);
+  const resolvedPath = resolveKaryaConfigPath(requestedPath);
 
   if (!fs.existsSync(resolvedPath)) {
     throw new Error(`Karya config file not found: ${resolvedPath}`);
@@ -38,6 +32,25 @@ export function loadKaryaConfig(configPath?: string): KaryaConfig {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Failed to parse Karya config at ${resolvedPath}: ${message}`);
   }
+}
+
+/**
+ * Resolves the config file path used by MCP/API runtime modules.
+ *
+ * @param requestedPath - Optional config path override
+ * @returns Absolute config file path
+ * @public
+ */
+export function resolveKaryaConfigPath(requestedPath?: string): string {
+  const targetPath = requestedPath ?? process.env.KARYA_CONFIG ?? './karya.config.json';
+  const searchRoots = [
+    process.env.INIT_CWD,
+    process.cwd(),
+  ].filter((value): value is string => Boolean(value));
+
+  return path.isAbsolute(targetPath)
+    ? targetPath
+    : resolveFromRoots(targetPath, searchRoots);
 }
 
 /**
@@ -83,7 +96,7 @@ function resolveFromRoots(relativePath: string, roots: string[]): string {
  * @returns Config with absolute filesystem paths
  * @internal
  */
-function normalizeConfigPaths(
+export function normalizeConfigPaths(
   config: KaryaConfig,
   configDir: string
 ): KaryaConfig {

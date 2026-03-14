@@ -15,6 +15,33 @@ function createProjectFixture() {
     name: 'Project One',
     path: '/tmp/project-one',
     createdAt: Date.now(),
+    stats: {
+      total: 0,
+      open: 0,
+      inProgress: 0,
+      done: 0,
+      critical: 0,
+      high: 0,
+      medium: 0,
+      low: 0,
+    },
+    analytics: {
+      urgentCount: 0,
+      completionRate: 0,
+      docsCount: 0,
+      artifactCount: 0,
+      scannerIssues: 0,
+      manualIssues: 0,
+      aiIssues: 0,
+      hasReadme: false,
+      hasArchitecture: false,
+      hasSpec: false,
+    },
+    documents: [],
+    scanSettings: {
+      include: ['src/**'],
+      exclude: ['dist'],
+    },
   };
 }
 

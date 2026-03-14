@@ -12,6 +12,8 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import type { BoardGenerator, Database, KaryaConfig } from '@karya/core';
 import { createBoardGenerator, createDatabase, createLogger } from '@karya/core';
+import { AiIssueSuggester } from './ai.js';
+import type { SuggestIssuesParams } from './ai.types.js';
 import { isMainModule, loadKaryaConfig } from './config.js';
 import { createAddIssueTool, type AddIssueParams } from './tools/add-issue.js';
 import {
@@ -26,6 +28,10 @@ import {
   createDeleteIssueTool,
   type DeleteIssueParams,
 } from './tools/delete-issue.js';
+import {
+  createSuggestIssuesTool,
+  SUGGEST_ISSUES_INPUT_SCHEMA,
+} from './tools/suggest-issues.js';
 
 /**
  * MCP Server configuration options.
@@ -72,6 +78,7 @@ export class MCPServer {
   private listIssues: ReturnType<typeof createListIssuesTool> | null = null;
   private updateIssue: ReturnType<typeof createUpdateIssueTool> | null = null;
   private deleteIssue: ReturnType<typeof createDeleteIssueTool> | null = null;
+  private suggestIssues: ReturnType<typeof createSuggestIssuesTool> | null = null;
 
   /**
    * Creates a new MCPServer instance.
@@ -233,6 +240,12 @@ export class MCPServer {
             required: ['issueId'],
           },
         },
+        {
+          name: 'suggest_issues',
+          description:
+            'Use the configured native AI provider to suggest missing work for one project. This never writes to SQLite or BOARD.md automatically.',
+          inputSchema: SUGGEST_ISSUES_INPUT_SCHEMA,
+        },
       ],
     }));
 
@@ -263,6 +276,10 @@ export class MCPServer {
             );
             return this.respond(await this.attachBoardSyncWarning(result));
           }
+          case 'suggest_issues':
+            return this.respond(
+              await this.mustGet(this.suggestIssues)(args as unknown as SuggestIssuesParams)
+            );
           default:
             throw new Error(`Unknown tool: ${name}`);
         }
@@ -288,6 +305,7 @@ export class MCPServer {
     this.listIssues = createListIssuesTool(this.db);
     this.updateIssue = createUpdateIssueTool(this.db);
     this.deleteIssue = createDeleteIssueTool(this.db);
+    this.suggestIssues = createSuggestIssuesTool(new AiIssueSuggester(this.db));
   }
 
   /**
@@ -303,6 +321,8 @@ export class MCPServer {
    * Stops the MCP server and closes database resources.
    */
   async stop(): Promise<void> {
+    this.suggestIssues = null;
+
     if (this.boardGenerator) {
       await this.boardGenerator.dispose();
       this.boardGenerator = null;

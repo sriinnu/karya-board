@@ -1,6 +1,6 @@
-# CLAUDE.md - Instructions for Claude Code
+# CLAUDE.md - Instructions for AI-Assisted Sessions
 
-This file provides context and instructions for Claude Code when working with the Karya project.
+This file provides context and instructions for AI-assisted sessions working with the Karya project.
 
 ## Project Overview
 
@@ -8,7 +8,8 @@ Karya is a local AI-powered task board that:
 - Scans codebases for TODO comments and markdown TODO files
 - Stores issues in a local SQLite database
 - Generates a BOARD.md file that any AI can read
-- Provides MCP tools for Claude Code integration
+- Provides MCP tools that any MCP-capable client can call
+- Provides built-in Anthropic and OpenAI suggestion lanes that stay review-first and never write issues implicitly
 
 ## Key Directories
 
@@ -71,13 +72,27 @@ pnpm typecheck
 
 ## MCP Tools
 
-The MCP server exposes three tools:
+The MCP server exposes five tools:
 
 1. `add_issue` - Create a new issue
 2. `list_issues` - List issues with filters
 3. `update_issue` - Update an existing issue
+4. `delete_issue` - Delete an existing issue
+5. `suggest_issues` - Ask the selected built-in AI provider for missing issue suggestions without writing to SQLite
 
 When adding new MCP tools, follow the pattern in `packages/mcp/src/tools/`.
+
+## Built-In AI Flow
+
+The built-in AI path is designed to stay operationally safe:
+
+1. The runtime supports `anthropic` and `openai` built-in lanes
+2. The default provider can be pinned with `KARYA_AI_PROVIDER`
+3. Each request can override both provider and model
+4. The HTTP API exposes `GET /api/ai/status` and `POST /api/ai/suggest-issues`
+5. The UI uses the `Ask AI` action to fetch reviewed suggestions
+6. The model only sees project name, stats, issue summaries, and optional user guidance by default
+7. The model never writes issues automatically; a human must approve each suggestion
 
 ## Code Style
 

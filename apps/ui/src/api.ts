@@ -8,9 +8,31 @@ import type {
   Issue as CoreIssue,
   IssuePriority,
   IssueStatus,
-  Project,
   ProjectStats,
 } from '@karya/core';
+import type {
+  AiProvider,
+  AiStatus,
+  SuggestedIssue,
+  SuggestIssuesInput,
+  SuggestionUsage,
+} from './ai.types';
+import type { ProjectOverview } from './project.types';
+export type {
+  AiProvider,
+  AiProviderStatus,
+  AiStatus,
+  SuggestedIssue,
+  SuggestIssuesInput,
+  SuggestionUsage,
+} from './ai.types';
+export type {
+  ProjectAnalytics,
+  ProjectDocumentKind,
+  ProjectDocumentSummary,
+  ProjectOverview,
+  ProjectScanSettings,
+} from './project.types';
 
 /**
  * Issue shape used by the UI after timestamp normalization.
@@ -23,15 +45,6 @@ export interface Issue extends Omit<CoreIssue, 'createdAt' | 'updatedAt'> {
   createdAt: number;
   /** Update timestamp in milliseconds */
   updatedAt: number;
-}
-
-/**
- * Project payload returned by the API.
- * @public
- */
-export interface ProjectWithStats extends Project {
-  /** Aggregated issue stats for the project */
-  stats: ProjectStats;
 }
 
 /**
@@ -91,7 +104,7 @@ export interface UpdateIssueInput {
  */
 interface ProjectsResponse {
   success: boolean;
-  projects?: ProjectWithStats[];
+  projects?: ProjectOverview[];
   error?: string;
 }
 
@@ -123,6 +136,40 @@ interface MutationResponse {
   warning?: string;
 }
 
+interface ScanSettingsResponse extends MutationResponse {
+  settings?: {
+    include: string[];
+    exclude: string[];
+  };
+}
+
+/**
+ * Scanner-control response payload.
+ * @internal
+ */
+interface ScannerStatusResponse {
+  success: boolean;
+  status?: ScannerStatus;
+  error?: string;
+}
+
+interface AiStatusResponse extends AiStatus {
+  success: boolean;
+  error?: string;
+}
+
+interface SuggestIssuesResponse {
+  success: boolean;
+  available: boolean;
+  provider: AiProvider | null;
+  providerLabel?: string;
+  model: string | null;
+  suggestions?: SuggestedIssue[];
+  usage?: SuggestionUsage;
+  warning?: string;
+  error?: string;
+}
+
 /**
  * Result returned by mutation endpoints.
  * I propagate non-fatal warnings so the UI can surface operational issues without failing the action.
@@ -131,6 +178,32 @@ interface MutationResponse {
 export interface MutationResult {
   /** Optional non-fatal warning emitted by the backend */
   warning: string | null;
+}
+
+/**
+ * Payload for project scan-settings updates.
+ * @public
+ */
+export interface UpdateProjectScanSettingsInput {
+  /** Include globs or paths */
+  include: string[];
+  /** Exclude globs or paths */
+  exclude: string[];
+}
+
+/**
+ * Embedded scanner status returned by the local API.
+ * @public
+ */
+export interface ScannerStatus {
+  /** Whether the embedded scanner is running */
+  running: boolean;
+  /** Number of configured projects */
+  projectCount: number;
+  /** Most recent successful start timestamp */
+  lastStartedAt: number | null;
+  /** Runtime mode for this scanner */
+  mode: 'embedded';
 }
 
 /**
@@ -146,7 +219,7 @@ const API_BASE = (import.meta.env.VITE_KARYA_API_URL ?? '/api').replace(/\/$/, '
  * @public
  */
 export async function fetchProjects(): Promise<{
-  projects: Project[];
+  projects: ProjectOverview[];
   stats: Record<string, ProjectStats>;
 }> {
   const payload = await request<ProjectsResponse>('/projects');
@@ -159,7 +232,7 @@ export async function fetchProjects(): Promise<{
   );
 
   return {
-    projects: payload.projects.map(({ stats: _stats, ...project }) => project),
+    projects: payload.projects,
     stats,
   };
 }
@@ -250,6 +323,85 @@ export async function updateIssue(
 }
 
 /**
+ * Persists include/exclude rules for a project.
+ *
+ * @param projectId - Target project ID
+ * @param input - Updated scanner rules
+ * @returns Mutation result plus the persisted rules
+ * @public
+ */
+export async function updateProjectScanSettings(
+  projectId: string,
+  input: UpdateProjectScanSettingsInput
+): Promise<MutationResult & { settings: UpdateProjectScanSettingsInput }> {
+  const payload = await request<ScanSettingsResponse>(
+    `/projects/${encodeURIComponent(projectId)}/scan-settings`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }
+  );
+
+  if (!payload.success || !payload.settings) {
+    throw new Error(payload.error ?? 'Failed to update scan settings');
+  }
+
+  return {
+    warning: payload.warning ?? null,
+    settings: payload.settings,
+  };
+}
+
+/**
+ * Loads the embedded scanner status from the local API.
+ *
+ * @returns Current scanner runtime status
+ * @public
+ */
+export async function fetchScannerStatus(): Promise<ScannerStatus> {
+  const payload = await request<ScannerStatusResponse>('/scanner/status');
+  if (!payload.success || !payload.status) {
+    throw new Error(payload.error ?? 'Failed to load scanner status');
+  }
+
+  return payload.status;
+}
+
+/**
+ * Starts the embedded scanner from the local API.
+ *
+ * @returns Updated scanner runtime status
+ * @public
+ */
+export async function startScanner(): Promise<ScannerStatus> {
+  const payload = await request<ScannerStatusResponse>('/scanner/start', {
+    method: 'POST',
+  });
+  if (!payload.success || !payload.status) {
+    throw new Error(payload.error ?? 'Failed to start scanner');
+  }
+
+  return payload.status;
+}
+
+/**
+ * Restarts the embedded scanner from the local API.
+ *
+ * @returns Updated scanner runtime status
+ * @public
+ */
+export async function restartScanner(): Promise<ScannerStatus> {
+  const payload = await request<ScannerStatusResponse>('/scanner/restart', {
+    method: 'POST',
+  });
+  if (!payload.success || !payload.status) {
+    throw new Error(payload.error ?? 'Failed to restart scanner');
+  }
+
+  return payload.status;
+}
+
+/**
  * Deletes an issue through the API.
  *
  * @param issueId - Issue identifier
@@ -265,6 +417,57 @@ export async function deleteIssue(issueId: string): Promise<MutationResult> {
   }
 
   return { warning: payload.warning ?? null };
+}
+
+/**
+ * Loads native AI provider readiness.
+ * @returns Provider readiness snapshot
+ * @public
+ */
+export async function fetchAiStatus(): Promise<AiStatus> {
+  const payload = await request<AiStatusResponse>('/ai/status');
+  if (!payload.success) {
+    throw new Error(payload.error ?? 'Failed to load AI provider status');
+  }
+
+  return {
+    available: payload.available,
+    defaultProvider: payload.defaultProvider,
+    providers: payload.providers,
+  };
+}
+
+/**
+ * Requests safe AI issue suggestions for one project.
+ * @param input - Suggestion request payload
+ * @returns Suggested issues plus provider and usage metadata
+ * @public
+ */
+export async function suggestIssues(input: SuggestIssuesInput): Promise<{
+  provider: AiProvider | null;
+  providerLabel?: string;
+  model: string | null;
+  suggestions: SuggestedIssue[];
+  usage: SuggestionUsage | null;
+  warning: string | null;
+}> {
+  const payload = await request<SuggestIssuesResponse>('/ai/suggest-issues', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+
+  if (!payload.success || !payload.suggestions) {
+    throw new Error(payload.error ?? 'Failed to generate AI suggestions');
+  }
+
+  return {
+    provider: payload.provider,
+    providerLabel: payload.providerLabel,
+    model: payload.model,
+    suggestions: payload.suggestions,
+    usage: payload.usage ?? null,
+    warning: payload.warning ?? null,
+  };
 }
 
 /**

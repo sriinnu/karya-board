@@ -48,7 +48,7 @@ add issue: <title> priority: high
 - `description` (optional): Detailed description
 - `priority` (optional): low, medium, high, critical (default: medium)
 - `status` (optional): open, in_progress, done (default: open)
-- `source` (optional): manual, scanner, claude (default: claude)
+- `source` (optional): manual, scanner, claude (default: claude, which is the current AI-created source marker)
 
 **Returns:** Confirmation with issue ID
 
@@ -107,7 +107,7 @@ scan projects
 
 ### MCP Tools
 
-When using MCP-enabled AI (Claude Code, OpenClaw), these tools are available:
+When using any MCP-enabled client or CLI, these tools are available:
 
 ```json
 {

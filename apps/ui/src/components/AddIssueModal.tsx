@@ -13,6 +13,7 @@ import {
   type KeyboardEvent,
   type MouseEvent,
 } from 'react';
+import { getFocusableElements } from './dialog-focus';
 import { useStore, type IssuePriority, type IssueStatus } from '../store';
 
 interface AddIssueModalProps {
@@ -163,7 +164,7 @@ export function AddIssueModal({ onClose }: AddIssueModalProps) {
             <p className="modal-kicker">Manual Issue</p>
             <h2 id={titleId} className="modal-title">Create a new issue</h2>
             <p id={descriptionId} className="modal-subtitle">
-              I write this into SQLite and the board regenerates automatically after the save lands.
+              I save this to SQLite and sync the board right after the write succeeds.
             </p>
           </div>
           <button
@@ -187,91 +188,113 @@ export function AddIssueModal({ onClose }: AddIssueModalProps) {
               </div>
             )}
 
-            <div className="form-grid">
-              <div className="form-group">
-                <label className="form-label" htmlFor={projectFieldId}>Project</label>
-                <select
-                  id={projectFieldId}
-                  value={projectId}
-                  onChange={(event) => setProjectId(event.target.value)}
-                  className="select"
-                  required
-                >
-                  <option value="">Select a project</option>
-                  {projects.map((project) => (
-                    <option key={project.id} value={project.id}>
-                      {project.name}
-                    </option>
-                  ))}
-                </select>
-                <div className="form-hint">I attach the issue to one tracked project at creation time.</div>
-              </div>
+            <div className="modal-summary-strip" aria-label="Creation guarantees">
+              <span className="modal-summary-pill">SQLite save</span>
+              <span className="modal-summary-pill">BOARD sync</span>
+              <span className="modal-summary-pill">Project scoped</span>
+            </div>
 
+            <section className="modal-section">
+              <div className="modal-section-heading">
+                <p className="sidebar-title">Context</p>
+                <p className="modal-section-copy">
+                  I anchor each issue to the right project and a clear title before anything else.
+                </p>
+              </div>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label className="form-label" htmlFor={projectFieldId}>Project</label>
+                  <select
+                    id={projectFieldId}
+                    value={projectId}
+                    onChange={(event) => setProjectId(event.target.value)}
+                    className="select"
+                    required
+                  >
+                    <option value="">Select a project</option>
+                    {projects.map((project) => (
+                      <option key={project.id} value={project.id}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="form-hint">Choose the project this work belongs to.</div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor={issueTitleFieldId}>Title</label>
+                  <input
+                    id={issueTitleFieldId}
+                    ref={titleInputRef}
+                    type="text"
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                    className="input"
+                    placeholder="Describe the work clearly"
+                    required
+                  />
+                  <div className="form-hint">Keep it short and scan-friendly.</div>
+                </div>
+              </div>
+            </section>
+
+            <section className="modal-section">
+              <div className="modal-section-heading">
+                <p className="sidebar-title">Detail</p>
+                <p className="modal-section-copy">
+                  I keep the description optional, but this is where nuance belongs when the title
+                  is not enough.
+                </p>
+              </div>
               <div className="form-group">
-                <label className="form-label" htmlFor={issueTitleFieldId}>Title</label>
-                <input
-                  id={issueTitleFieldId}
-                  ref={titleInputRef}
-                  type="text"
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                  className="input"
-                  placeholder="Describe the work clearly"
-                  required
+                <label className="form-label" htmlFor={issueDescriptionFieldId}>Description</label>
+                <textarea
+                  id={issueDescriptionFieldId}
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  className="textarea"
+                  placeholder="Add context, expected outcome, or a source path if it matters"
                 />
-                <div className="form-hint">Keep it short enough to scan at a glance.</div>
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label" htmlFor={issueDescriptionFieldId}>Description</label>
-              <textarea
-                id={issueDescriptionFieldId}
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                className="textarea"
-                placeholder="Add context, expected outcome, or a source path if it matters"
-              />
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label" htmlFor={priorityFieldId}>Priority</label>
-                <select
-                  id={priorityFieldId}
-                  value={priority}
-                  onChange={(event) => setPriority(event.target.value as IssuePriority)}
-                  className="select"
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="critical">Critical</option>
-                </select>
               </div>
 
-              <div className="form-group">
-                <label className="form-label" htmlFor={statusFieldId}>Status</label>
-                <select
-                  id={statusFieldId}
-                  value={status}
-                  onChange={(event) => setStatus(event.target.value as IssueStatus)}
-                  className="select"
-                >
-                  <option value="open">Open</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="done">Done</option>
-                </select>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label" htmlFor={priorityFieldId}>Priority</label>
+                  <select
+                    id={priorityFieldId}
+                    value={priority}
+                    onChange={(event) => setPriority(event.target.value as IssuePriority)}
+                    className="select"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor={statusFieldId}>Status</label>
+                  <select
+                    id={statusFieldId}
+                    value={status}
+                    onChange={(event) => setStatus(event.target.value as IssueStatus)}
+                    className="select"
+                  >
+                    <option value="open">Open</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="done">Done</option>
+                  </select>
+                </div>
               </div>
-            </div>
+            </section>
           </div>
 
           <div className="modal-footer">
             <p className="modal-footnote">
-              I keep this flow intentionally compact so creation is fast, but the issue still lands
-              with the right project, status, and priority.
+              I keep this flow light so issue creation stays quick and deliberate.
             </p>
-            <div className="flex gap-sm">
+            <div className="modal-actions">
               <button
                 type="button"
                 onClick={onClose}
@@ -299,26 +322,5 @@ export function AddIssueModal({ onClose }: AddIssueModalProps) {
         </form>
       </div>
     </div>
-  );
-}
-
-/**
- * Returns tabbable descendants inside the modal dialog.
- * @param root - Dialog root element
- * @returns Ordered list of focusable elements
- * @internal
- */
-function getFocusableElements(root: HTMLElement): HTMLElement[] {
-  const selector = [
-    'button:not([disabled])',
-    'input:not([disabled])',
-    'select:not([disabled])',
-    'textarea:not([disabled])',
-    '[href]',
-    '[tabindex]:not([tabindex="-1"])',
-  ].join(', ');
-
-  return Array.from(root.querySelectorAll<HTMLElement>(selector)).filter(
-    (element) => !element.hasAttribute('disabled') && element.getAttribute('aria-hidden') !== 'true'
   );
 }

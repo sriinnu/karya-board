@@ -90,6 +90,10 @@ export function IssueBoard() {
   const totalPages = Math.max(1, Math.ceil(ui.totalCount / ui.pageSize));
   const rangeStart = ui.totalCount === 0 ? 0 : (ui.page - 1) * ui.pageSize + 1;
   const rangeEnd = ui.totalCount === 0 ? 0 : Math.min(ui.totalCount, ui.page * ui.pageSize);
+  const activeStatusLabel =
+    STATUS_FILTERS.find((filter) => filter.value === ui.statusFilter)?.label ?? 'All';
+  const activePriorityLabel =
+    ui.priorityFilter === 'all' ? 'All priorities' : PRIORITY_CONFIG[ui.priorityFilter].label;
   const activeProjectName = ui.selectedProjectId
     ? projects.find((project) => project.id === ui.selectedProjectId)?.name ?? 'Focused Project'
     : 'All Projects';
@@ -113,6 +117,14 @@ export function IssueBoard() {
     ui.priorityFilter !== 'all',
     ui.search.trim().length > 0,
   ].filter(Boolean).length;
+  const focusSummary =
+    activeFilterCount === 0
+      ? 'The full workspace is in view.'
+      : `${activeFilterCount} active filter${activeFilterCount === 1 ? '' : 's'} are refining the board.`;
+  const boardWindowLabel =
+    ui.totalCount === 0
+      ? 'No matching issues are visible in the current window.'
+      : `Showing ${rangeStart}-${rangeEnd} of ${ui.totalCount} matching issue${ui.totalCount === 1 ? '' : 's'}.`;
 
   /**
    * I keep the local search field synchronized with store state.
@@ -158,34 +170,64 @@ export function IssueBoard() {
     <div className="surface-stack">
       <section className="surface-panel hero-panel">
         <div className="hero-copy">
-          <p className="hero-kicker">Issue Cockpit</p>
+          <p className="hero-kicker">Spanda Lens</p>
           <h2 className="hero-title">{activeProjectName}</h2>
           <p className="hero-description">
-            I keep this board centered on signal: scanner findings, manual issues, and the work that
-            should move next.
+            I keep this board centered on signal so scanner findings, manual issues, and the next
+            deliberate moves read like one calm system.
           </p>
+          <div className="hero-pill-row" aria-label="Board focus">
+            <span className="hero-pill">{scopeStats.total} tracked</span>
+            <span className="hero-pill">{activeStatusLabel}</span>
+            <span className="hero-pill">{activePriorityLabel}</span>
+            {ui.search.trim() && <span className="hero-pill hero-pill-accent">Search active</span>}
+          </div>
         </div>
 
-        <div className="hero-stats">
-          <div className="metric-card">
-            <span className="metric-label">Open</span>
-            <span className="metric-value">{scopeStats.open}</span>
-            <span className="metric-note">Outstanding work in the current scope.</span>
-          </div>
-          <div className="metric-card">
-            <span className="metric-label">In Progress</span>
-            <span className="metric-value">{scopeStats.inProgress}</span>
-            <span className="metric-note">Items actively moving now.</span>
-          </div>
-          <div className="metric-card">
-            <span className="metric-label">Critical</span>
-            <span className="metric-value">{scopeStats.critical}</span>
-            <span className="metric-note">Issues that deserve immediate attention.</span>
-          </div>
-          <div className="metric-card">
-            <span className="metric-label">Matching</span>
-            <span className="metric-value">{ui.totalCount}</span>
-            <span className="metric-note">Rows that match the current filters.</span>
+        <div className="hero-aside">
+          <div className="hero-brief">
+            <div className="hero-brief-header">
+              <span className="hero-brief-kicker">Focus Brief</span>
+              {activeFilterCount > 0 && (
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => {
+                    setSearchDraft('');
+                    startTransition(() => {
+                      setSearch('');
+                      setStatusFilter('all');
+                      setPriorityFilter('all');
+                    });
+                  }}
+                >
+                  Reset Filters
+                </button>
+              )}
+            </div>
+            <p className="hero-brief-copy">{focusSummary}</p>
+            <div className="hero-stats">
+              <div className="metric-card">
+                <span className="metric-label">Open</span>
+                <span className="metric-value">{scopeStats.open}</span>
+                <span className="metric-note">Outstanding work in the current scope.</span>
+              </div>
+              <div className="metric-card">
+                <span className="metric-label">In Progress</span>
+                <span className="metric-value">{scopeStats.inProgress}</span>
+                <span className="metric-note">Items actively moving now.</span>
+              </div>
+              <div className="metric-card">
+                <span className="metric-label">Critical</span>
+                <span className="metric-value">{scopeStats.critical}</span>
+                <span className="metric-note">Issues that deserve immediate attention.</span>
+              </div>
+              <div className="metric-card">
+                <span className="metric-label">Matching</span>
+                <span className="metric-value">{ui.totalCount}</span>
+                <span className="metric-note">Rows that match the current filters.</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -274,12 +316,12 @@ export function IssueBoard() {
 
       <section className="surface-panel board-toolbar">
         <div className="board-summary">
-          <span>
-            Showing {rangeStart}-{rangeEnd} of {ui.totalCount} issue{ui.totalCount === 1 ? '' : 's'}
+          <strong className="board-summary-headline">{boardWindowLabel}</strong>
+          <span className="board-summary-note">
+            Page {ui.page} is tuned for quick triage instead of endless scrolling.
           </span>
           {activeFilterCount > 0 && (
             <>
-              <span>•</span>
               <button
                 type="button"
                 className="text-button"

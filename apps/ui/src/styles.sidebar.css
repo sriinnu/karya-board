@@ -1,0 +1,320 @@
+/**
+ * I style the project rail and sidebar navigation surfaces here.
+ * @packageDocumentation
+ */
+
+.sidebar {
+  position: sticky;
+  top: 128px;
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+  border-radius: 28px;
+}
+
+.sidebar-brand-panel,
+.sidebar-command-panel {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 22px;
+  border: 1px solid rgba(17, 24, 39, 0.07);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(247, 249, 252, 0.97) 100%);
+}
+
+.sidebar-script {
+  font-family: var(--font-script);
+  font-size: 1.7rem;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--color-text-primary);
+}
+
+.sidebar-brand-copy,
+.sidebar-command-note {
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.sidebar-brand-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sidebar-brand-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(0, 113, 227, 0.1);
+  color: var(--color-accent-strong);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.sidebar-menu {
+  display: grid;
+  gap: 10px;
+}
+
+.sidebar-menu-card {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(17, 24, 39, 0.05);
+  background: rgba(255, 255, 255, 0.88);
+  text-decoration: none;
+  transition:
+    transform var(--transition-medium),
+    border-color var(--transition-medium),
+    box-shadow var(--transition-medium);
+}
+
+.sidebar-menu-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(17, 24, 39, 0.12);
+  box-shadow: var(--color-shadow-card);
+}
+
+.sidebar-menu-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sidebar-menu-label,
+.sidebar-command-kicker {
+  color: var(--color-text-tertiary);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.sidebar-menu-value {
+  font-size: 1.16rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.sidebar-menu-note {
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.sidebar-command-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.sidebar-command-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.project-rail {
+  display: grid;
+  gap: 18px;
+}
+
+.rail-summary {
+  display: grid;
+  gap: 12px;
+}
+
+.rail-heading {
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.rail-copy {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.rail-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.rail-metric {
+  padding: 12px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(17, 24, 39, 0.05);
+}
+
+.rail-metric-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--color-text-tertiary);
+  font-size: 0.75rem;
+}
+
+.rail-metric-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.project-list {
+  display: grid;
+  gap: 12px;
+}
+
+.project-card {
+  width: 100%;
+  padding: 18px;
+  border-radius: 26px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.62);
+  color: inherit;
+  text-align: left;
+  transition:
+    border-color var(--transition-medium),
+    background var(--transition-medium),
+    box-shadow var(--transition-medium);
+  cursor: pointer;
+}
+
+.project-card:hover {
+  border-color: rgba(17, 24, 39, 0.08);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--color-shadow-card);
+}
+
+.project-card.active {
+  border-color: rgba(0, 113, 227, 0.16);
+  background:
+    linear-gradient(145deg, rgba(0, 113, 227, 0.12) 0%, rgba(255, 255, 255, 0.94) 100%);
+  box-shadow: 0 18px 30px rgba(0, 113, 227, 0.12);
+}
+
+.project-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.project-card-identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.project-card-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(0, 113, 227, 0.14), rgba(111, 203, 255, 0.24));
+  color: var(--color-accent-strong);
+  font-size: 0.86rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.project-card-name {
+  display: block;
+  font-size: 0.98rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.project-card-caption {
+  margin-top: 4px;
+  color: var(--color-text-tertiary);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.project-card-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.06);
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.project-card-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.project-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.05);
+  color: var(--color-text-secondary);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.project-pill[data-tone='critical'] {
+  background: var(--color-critical-soft);
+  color: var(--color-critical);
+}
+
+.project-pill[data-tone='progress'] {
+  background: var(--color-progress-soft);
+  color: #0b82b8;
+}
+
+.project-pill[data-tone='docs'] {
+  background: rgba(0, 113, 227, 0.1);
+  color: var(--color-accent-strong);
+}
+
+@media (max-width: 1100px) {
+  .sidebar {
+    position: static;
+  }
+}
+
+@media (max-width: 860px) {
+  .sidebar {
+    padding: 18px;
+  }
+
+  .rail-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .project-card-top {
+    flex-direction: column;
+  }
+
+  .project-card-details {
+    width: 100%;
+  }
+
+  .rail-metrics {
+    grid-template-columns: 1fr;
+  }
+}

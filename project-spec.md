@@ -135,10 +135,10 @@ _Last updated: 2026-03-13 09:42_
 
 ---
 
-## MCP Tools (Claude Code uses these)
+## MCP Tools (Any MCP-capable Client Uses These)
 
 ```typescript
-// Claude Code in-session:
+// Any MCP-capable client in-session:
 "I found a memory leak in vaayu/src/memory.ts — add it to Karya"
 
 // MCP tool fires:

@@ -10,39 +10,64 @@
 }
 
 .issue-card {
+  position: relative;
   display: grid;
   gap: 14px;
   min-width: 0;
   padding: 18px;
-  border-radius: 24px;
+  border-radius: 26px;
   border: 1px solid rgba(17, 24, 39, 0.06);
-  background: rgba(255, 255, 255, 0.9);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(249, 250, 252, 0.98) 100%);
   box-shadow: var(--color-shadow-card);
   transition:
-    transform var(--transition-fast),
     box-shadow var(--transition-medium),
     border-color var(--transition-medium);
 }
 
+.issue-card::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  content: '';
+  border-radius: 26px 0 0 26px;
+  background: rgba(17, 24, 39, 0.08);
+}
+
 .issue-card:hover {
-  transform: translateY(-2px);
   border-color: rgba(17, 24, 39, 0.12);
   box-shadow: var(--color-shadow-lift);
 }
 
 .issue-card.done {
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.76);
 }
 
 .issue-card.pending {
-  opacity: 0.72;
+  opacity: 0.74;
+}
+
+.issue-card.priority-critical::before {
+  background: var(--color-critical);
+}
+
+.issue-card.priority-high::before {
+  background: var(--color-high);
+}
+
+.issue-card.priority-medium::before {
+  background: #d0a800;
+}
+
+.issue-card.priority-low::before {
+  background: var(--color-low);
 }
 
 .issue-card-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--space-md);
+  gap: 14px;
 }
 
 .issue-card-signal {
@@ -52,10 +77,16 @@
   min-width: 0;
 }
 
+.issue-card-meta-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .priority-dot {
-  width: 11px;
-  height: 11px;
-  margin-top: 7px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -78,22 +109,30 @@
 
 .issue-card-kicker {
   color: var(--color-text-tertiary);
-  font-size: 0.76rem;
+  font-size: 0.74rem;
   font-weight: 700;
-  letter-spacing: 0.13em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
+.issue-card-divider {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.22);
+}
+
 .issue-card-title {
-  margin-top: 6px;
-  font-size: 1.06rem;
+  margin-top: 8px;
+  font-size: 1.08rem;
   font-weight: 700;
   letter-spacing: -0.03em;
+  line-height: 1.32;
 }
 
 .issue-card-description {
   color: var(--color-text-secondary);
-  line-height: 1.58;
+  line-height: 1.6;
 }
 
 .issue-card-meta {
@@ -150,17 +189,35 @@
   color: #1f8f40;
 }
 
+.issue-source-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: rgba(17, 24, 39, 0.035);
+}
+
+.issue-source-label {
+  color: var(--color-text-tertiary);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 .issue-source {
   min-width: 0;
-  color: var(--color-text-tertiary);
-  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+  font-size: 0.84rem;
 }
 
 .issue-card-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-md);
+  gap: 14px;
 }
 
 .status-switch {
@@ -182,12 +239,7 @@
   transition:
     background var(--transition-medium),
     color var(--transition-medium),
-    transform var(--transition-fast),
     border-color var(--transition-fast);
-}
-
-.status-switch-button:hover:not(:disabled) {
-  transform: translateY(-1px);
 }
 
 .status-switch-button.active {
@@ -254,6 +306,7 @@
 .loading-copy,
 .notice-copy {
   color: var(--color-text-secondary);
+  line-height: 1.6;
 }
 
 .loading-skeleton-list {
@@ -323,7 +376,7 @@
 
 .empty-state {
   justify-items: center;
-  padding: 34px 24px;
+  padding: 36px 24px;
   text-align: center;
   border: 1px dashed rgba(0, 113, 227, 0.2);
   background:

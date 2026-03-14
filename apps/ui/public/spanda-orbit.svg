@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <linearGradient id="spanda-shell" x1="18" y1="10" x2="112" y2="118">
+      <stop offset="0%" stop-color="#0A84FF"/>
+      <stop offset="100%" stop-color="#6BD7FF"/>
+    </linearGradient>
+    <linearGradient id="spanda-core" x1="30" y1="22" x2="96" y2="106">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#EAF4FF"/>
+    </linearGradient>
+    <linearGradient id="spanda-pulse" x1="34" y1="64" x2="94" y2="64">
+      <stop offset="0%" stop-color="#0A84FF"/>
+      <stop offset="100%" stop-color="#36C7FF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- I keep this orbit variant more directional for hero or marketing use. -->
+  <circle cx="64" cy="64" r="53" stroke="#9DDFFF" stroke-opacity="0.18" stroke-width="1.5"/>
+  <g transform-origin="64px 64px">
+    <animateTransform attributeName="transform" type="rotate" from="0 64 64" to="360 64 64" dur="8s" repeatCount="indefinite"/>
+    <circle cx="64" cy="11" r="5.5" fill="#FFFFFF" fill-opacity="0.95"/>
+    <circle cx="64" cy="117" r="4" fill="#A9EAFF" fill-opacity="0.92"/>
+  </g>
+  <rect x="10" y="10" width="108" height="108" rx="30" fill="url(#spanda-shell)"/>
+  <rect x="14" y="14" width="100" height="100" rx="26" stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="1.5"/>
+  <rect x="26" y="22" width="76" height="84" rx="24" fill="url(#spanda-core)"/>
+  <circle cx="64" cy="34" r="7" fill="#FFFFFF" fill-opacity="0.38"/>
+  <rect x="46" y="42" width="36" height="5" rx="2.5" fill="#D6E8FF"/>
+  <path
+    d="M34 68H45L52 55L63 80L73 58H94"
+    stroke="url(#spanda-pulse)"
+    stroke-width="7"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <rect x="46" y="88" width="28" height="5" rx="2.5" fill="#D6E8FF"/>
+  <circle cx="39" cy="44.5" r="4" fill="#0A84FF" fill-opacity="0.14"/>
+  <circle cx="39" cy="90.5" r="4" fill="#0A84FF" fill-opacity="0.14"/>
+</svg>

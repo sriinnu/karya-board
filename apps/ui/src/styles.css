@@ -5,6 +5,10 @@
 
 @import './styles.base.css';
 @import './styles.shell.css';
+@import './styles.header.css';
+@import './styles.sidebar.css';
+@import './styles.marquee.css';
+@import './styles.dashboard.css';
 @import './styles.board.css';
 @import './styles.cards.css';
 @import './styles.modal.css';

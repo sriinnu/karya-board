@@ -12,7 +12,25 @@ import {
 } from 'node:http';
 import type { BoardGenerator, Database, KaryaConfig, ProjectStats } from '@karya/core';
 import { createBoardGenerator, createDatabase, createLogger } from '@karya/core';
+import {
+  AiIssueSuggester,
+} from './ai.js';
+import { AI_PROVIDERS, type AIProvider, type SuggestIssuesParams } from './ai.types.js';
+import {
+  resolveProjectScanSettings,
+  updateProjectScanSettings,
+  type ProjectScanSettings,
+} from './config-store.js';
 import { isMainModule, loadKaryaConfig } from './config.js';
+import {
+  ScannerController,
+  type ScannerRuntimeStatus,
+} from './scanner-controller.js';
+import {
+  buildProjectInsights,
+  type ApiProjectAnalytics,
+  type ApiProjectDocument,
+} from './project-dashboard.js';
 import { createAddIssueTool, type AddIssueParams } from './tools/add-issue.js';
 import {
   createDeleteIssueTool,
@@ -60,6 +78,12 @@ export interface ApiProject {
   createdAt: number;
   /** Aggregated board stats */
   stats: ProjectStats;
+  /** Project dashboard analytics */
+  analytics: ApiProjectAnalytics;
+  /** Curated docs surfaced for the dashboard */
+  documents: ApiProjectDocument[];
+  /** Scanner include/exclude rules */
+  scanSettings: ProjectScanSettings;
 }
 
 /**
@@ -71,6 +95,8 @@ export interface ApiServerOptions {
   host?: string;
   /** Optional override for the HTTP port */
   port?: number;
+  /** Optional config path used for persistence routes */
+  configPath?: string;
 }
 
 /**
@@ -84,6 +110,19 @@ interface ApiMutationPayload {
   error?: string;
   /** Non-fatal warning when BOARD.md could not be regenerated */
   warning?: string;
+}
+
+/**
+ * Scanner-control API payload.
+ * @internal
+ */
+interface ApiScannerPayload {
+  /** Whether the request succeeded */
+  success: boolean;
+  /** Embedded scanner status */
+  status?: ScannerRuntimeStatus;
+  /** Error message when the request failed */
+  error?: string;
 }
 
 /**
@@ -105,12 +144,20 @@ export class KaryaApiServer {
   private listIssues: ReturnType<typeof createListIssuesTool> | null = null;
   private updateIssue: ReturnType<typeof createUpdateIssueTool> | null = null;
   private deleteIssue: ReturnType<typeof createDeleteIssueTool> | null = null;
+  private aiSuggester: AiIssueSuggester | null = null;
+  private scannerController: ScannerController | null = null;
 
   /** Resolved host binding */
   private readonly host: string;
 
   /** Resolved port binding */
   private readonly port: number;
+
+  /** Optional config file path for settings persistence */
+  private readonly configPath?: string;
+
+  /** In-memory normalized config */
+  private config: KaryaConfig | null = null;
 
   /**
    * Creates a new API server instance.
@@ -120,6 +167,7 @@ export class KaryaApiServer {
   constructor(options: ApiServerOptions = {}) {
     this.host = options.host ?? DEFAULT_API_HOST;
     this.port = normalizePort(options.port ?? Number(process.env.KARYA_API_PORT));
+    this.configPath = options.configPath;
   }
 
   /**
@@ -128,12 +176,19 @@ export class KaryaApiServer {
    * @param config - Parsed Karya configuration
    */
   async initialize(config: KaryaConfig): Promise<void> {
+    this.config = config;
     this.db = await createDatabase(config);
     this.boardGenerator = createBoardGenerator({ db: this.db, config });
     this.addIssue = createAddIssueTool(this.db);
     this.listIssues = createListIssuesTool(this.db);
     this.updateIssue = createUpdateIssueTool(this.db);
     this.deleteIssue = createDeleteIssueTool(this.db);
+    this.aiSuggester = new AiIssueSuggester(this.db);
+    this.scannerController = new ScannerController({
+      db: this.db,
+      config,
+      boardGenerator: this.boardGenerator,
+    });
     this.server = createServer((request, response) => {
       void this.handleRequest(request, response);
     });
@@ -173,10 +228,17 @@ export class KaryaApiServer {
       this.server = null;
     }
 
+    if (this.scannerController) {
+      await this.scannerController.dispose();
+      this.scannerController = null;
+    }
+
     if (this.boardGenerator) {
       await this.boardGenerator.dispose();
       this.boardGenerator = null;
     }
+
+    this.aiSuggester = null;
 
     if (this.db) {
       this.db.close();
@@ -210,21 +272,83 @@ export class KaryaApiServer {
     const pathname = url.pathname;
 
     try {
+      if (request.method === 'GET' && pathname === '/') {
+        const uiPort = Number(process.env.KARYA_UI_PORT ?? 9631);
+        this.sendJson(response, 200, {
+          success: true,
+          service: 'karya-api',
+          message: 'This is the local Karya HTTP API. Open the Spanda UI separately.',
+          uiUrl: `http://127.0.0.1:${uiPort}`,
+          healthUrl: '/api/health',
+        });
+        return;
+      }
+
       if (request.method === 'GET' && pathname === '/api/health') {
         this.sendJson(response, 200, { success: true });
         return;
       }
 
+      if (request.method === 'GET' && pathname === '/api/scanner/status') {
+        this.sendJson(response, 200, {
+          success: true,
+          status: this.mustGetScannerController().getStatus(),
+        } satisfies ApiScannerPayload);
+        return;
+      }
+
+      if (request.method === 'POST' && pathname === '/api/scanner/start') {
+        this.sendJson(response, 200, {
+          success: true,
+          status: await this.mustGetScannerController().start(),
+        } satisfies ApiScannerPayload);
+        return;
+      }
+
+      if (request.method === 'POST' && pathname === '/api/scanner/restart') {
+        this.sendJson(response, 200, {
+          success: true,
+          status: await this.mustGetScannerController().restart(),
+        } satisfies ApiScannerPayload);
+        return;
+      }
+
       if (request.method === 'GET' && pathname === '/api/projects') {
         const db = this.mustGetDb();
+        const config = this.mustGetConfig();
         const projects = db
           .getAllProjects()
-          .map((project): ApiProject => ({
-            ...project,
-            stats: db.getProjectStats(project.id),
-          }));
+          .map((project): ApiProject => {
+            const stats = db.getProjectStats(project.id);
+            const insights = buildProjectInsights(db, project, stats);
+
+            return {
+              ...project,
+              stats,
+              analytics: insights.analytics,
+              documents: insights.documents,
+              scanSettings: resolveProjectScanSettings(config, project.path, project.name),
+            };
+          });
 
         this.sendJson(response, 200, { success: true, projects });
+        return;
+      }
+
+      if (request.method === 'GET' && pathname === '/api/ai/status') {
+        this.sendJson(response, 200, { success: true, ...this.mustGetAiSuggester().getStatus() });
+        return;
+      }
+
+      if (request.method === 'POST' && pathname === '/api/ai/suggest-issues') {
+        const result = await this.mustGetAiSuggester().suggestIssues(
+          parseSuggestIssuesParams(await this.readJsonBody<unknown>(request))
+        );
+        this.sendJson(
+          response,
+          result.success ? 200 : result.statusCode ?? (result.available ? 400 : 503),
+          result
+        );
         return;
       }
 
@@ -248,6 +372,33 @@ export class KaryaApiServer {
       }
 
       const issueId = this.getIssueIdFromPath(pathname);
+      const projectScanSettingsTarget = this.getProjectScanSettingsTarget(pathname);
+      if (projectScanSettingsTarget && request.method === 'PATCH') {
+        const db = this.mustGetDb();
+        const project = db.getProjectById(projectScanSettingsTarget);
+        if (!project) {
+          this.sendJson(response, 404, { success: false, error: 'Project not found' });
+          return;
+        }
+
+        const payload = parseScanSettingsPayload(await this.readJsonBody<unknown>(request));
+        const result = updateProjectScanSettings({
+          configPath: this.configPath,
+          projectPath: project.path,
+          projectName: project.name,
+          include: payload.include,
+          exclude: payload.exclude,
+        });
+        this.config = result.config;
+        this.mustGetScannerController().setConfig(result.config);
+        this.sendJson(response, 200, {
+          success: true,
+          settings: result.settings,
+          warning: result.warning,
+        });
+        return;
+      }
+
       if (issueId && request.method === 'PATCH') {
         const payload = await this.readJsonBody<Omit<UpdateIssueParams, 'issueId'>>(
           request
@@ -282,7 +433,11 @@ export class KaryaApiServer {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.sendJson(response, 500, { success: false, error: message });
+      this.sendJson(
+        response,
+        error instanceof HttpRequestError ? error.statusCode : 500,
+        { success: false, error: message }
+      );
     }
   }
 
@@ -329,7 +484,7 @@ export class KaryaApiServer {
       return JSON.parse(raw) as T;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Invalid JSON body: ${message}`);
+      throw new HttpRequestError(400, `Invalid JSON body: ${message}`);
     }
   }
 
@@ -378,6 +533,18 @@ export class KaryaApiServer {
   }
 
   /**
+   * Extracts a project ID from `/api/projects/:id/scan-settings` paths.
+   *
+   * @param pathname - Request path
+   * @returns Project ID when present
+   * @internal
+   */
+  private getProjectScanSettingsTarget(pathname: string): string | null {
+    const match = /^\/api\/projects\/([^/]+)\/scan-settings$/.exec(pathname);
+    return match ? decodeURIComponent(match[1]) : null;
+  }
+
+  /**
    * Ensures the database is initialized.
    *
    * @returns Active database instance
@@ -404,6 +571,20 @@ export class KaryaApiServer {
   }
 
   /**
+   * Ensures the normalized config is initialized.
+   *
+   * @returns Active config
+   * @internal
+   */
+  private mustGetConfig(): KaryaConfig {
+    if (!this.config) {
+      throw new Error('API server not initialized');
+    }
+
+    return this.config;
+  }
+
+  /**
    * Ensures a tool-backed handler is available.
    *
    * @param handler - Possibly null handler
@@ -415,6 +596,31 @@ export class KaryaApiServer {
       throw new Error('API server not initialized');
     }
     return handler;
+  }
+
+  /**
+   * Ensures the AI suggester is initialized.
+   * @returns Initialized AI suggester
+   * @internal
+   */
+  private mustGetAiSuggester(): AiIssueSuggester {
+    if (!this.aiSuggester) {
+      throw new Error('API server not initialized');
+    }
+    return this.aiSuggester;
+  }
+
+  /**
+   * Ensures the embedded scanner controller is initialized.
+   * @returns Initialized scanner controller
+   * @internal
+   */
+  private mustGetScannerController(): ScannerController {
+    if (!this.scannerController) {
+      throw new Error('API server not initialized');
+    }
+
+    return this.scannerController;
   }
 
   /**
@@ -479,7 +685,10 @@ export async function runApiServerFromConfig(
   options: ApiServerOptions = {}
 ): Promise<KaryaApiServer> {
   const config = loadKaryaConfig(configPath);
-  return runApiServer(config, options);
+  return runApiServer(config, {
+    ...options,
+    configPath: options.configPath ?? configPath,
+  });
 }
 
 /**
@@ -523,6 +732,146 @@ function parseNumber(value: string | null): number | undefined {
  */
 function normalizeEnum<T extends string>(value: string | null): T | undefined {
   return valueOrUndefined(value) as T | undefined;
+}
+
+/**
+ * Lightweight request error with an attached HTTP status.
+ * @internal
+ */
+class HttpRequestError extends Error {
+  /** HTTP status to return */
+  public readonly statusCode: number;
+
+  /**
+   * Creates a new request error.
+   * @param statusCode - HTTP status code
+   * @param message - User-facing error message
+   */
+  constructor(statusCode: number, message: string) {
+    super(message);
+    this.name = 'HttpRequestError';
+    this.statusCode = statusCode;
+  }
+}
+
+/**
+ * Validates the AI suggestion payload before dispatching it to a provider.
+ * @param payload - Parsed JSON body
+ * @returns Validated suggestion params
+ * @internal
+ */
+function parseSuggestIssuesParams(payload: unknown): SuggestIssuesParams {
+  if (!isRecord(payload)) {
+    throw new HttpRequestError(400, 'AI suggestion payload must be a JSON object.');
+  }
+
+  assertAllowedKeys(payload, ['projectId', 'provider', 'model', 'prompt', 'maxSuggestions']);
+
+  return {
+    projectId: readRequiredString(payload.projectId, 'projectId'),
+    provider: readOptionalProvider(payload.provider),
+    model: readOptionalString(payload.model, 'model'),
+    prompt: readOptionalString(payload.prompt, 'prompt'),
+    maxSuggestions: readOptionalSuggestionCount(payload.maxSuggestions),
+  };
+}
+
+/**
+ * Validates the scan-settings payload used for config updates.
+ * @param payload - Parsed JSON body
+ * @returns Sanitized scan settings
+ * @internal
+ */
+function parseScanSettingsPayload(payload: unknown): ProjectScanSettings {
+  if (!isRecord(payload)) {
+    throw new HttpRequestError(400, 'Scan settings payload must be a JSON object.');
+  }
+
+  assertAllowedKeys(payload, ['include', 'exclude']);
+
+  return {
+    include: readRequiredStringArray(payload.include, 'include'),
+    exclude: readRequiredStringArray(payload.exclude, 'exclude'),
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function assertAllowedKeys(payload: Record<string, unknown>, allowedKeys: string[]): void {
+  const allowed = new Set(allowedKeys);
+  const invalidKey = Object.keys(payload).find((key) => !allowed.has(key));
+  if (invalidKey) {
+    throw new HttpRequestError(400, `Unsupported AI suggestion field: ${invalidKey}`);
+  }
+}
+
+function readRequiredString(value: unknown, field: string): string {
+  const parsed = readOptionalString(value, field);
+  if (!parsed) {
+    throw new HttpRequestError(400, `AI suggestion field "${field}" is required.`);
+  }
+  return parsed;
+}
+
+function readOptionalString(value: unknown, field: string): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value !== 'string') {
+    throw new HttpRequestError(400, `AI suggestion field "${field}" must be a string.`);
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function readOptionalSuggestionCount(value: unknown): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > 8) {
+    throw new HttpRequestError(
+      400,
+      'AI suggestion field "maxSuggestions" must be an integer between 1 and 8.'
+    );
+  }
+
+  return value;
+}
+
+function readRequiredStringArray(value: unknown, field: string): string[] {
+  if (!Array.isArray(value)) {
+    throw new HttpRequestError(400, `Scan settings field "${field}" must be an array of strings.`);
+  }
+
+  const entries = value.map((entry) => {
+    if (typeof entry !== 'string') {
+      throw new HttpRequestError(
+        400,
+        `Scan settings field "${field}" must contain only strings.`
+      );
+    }
+
+    return entry.trim();
+  });
+
+  return entries.filter((entry) => entry.length > 0);
+}
+
+function readOptionalProvider(value: unknown): AIProvider | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value !== 'string' || !AI_PROVIDERS.includes(value as AIProvider)) {
+    throw new HttpRequestError(
+      400,
+      `AI suggestion field "provider" must be one of: ${AI_PROVIDERS.join(', ')}.`
+    );
+  }
+
+  return value as AIProvider;
 }
 
 /**

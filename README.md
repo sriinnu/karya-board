@@ -1,34 +1,49 @@
-# Karya
+# Spanda
 
-A local AI-powered task board that reads your codebase and generates actionable tasks. One machine. Zero cloud. One `BOARD.md`. Every AI reads it.
+Spanda is the calm operating surface for Karya, a local-first issue board that scans your repo, stores state in SQLite, regenerates `BOARD.md`, and exposes the same workflow through the web UI, CLI, HTTP API, and MCP tools.
 
-![Karya](docs/karya.svg)
+![Spanda mark](docs/karya.svg)
 
-## Features
+`Karya` is still the runtime name in the codebase.
+`Spanda` is the front-facing product surface and the main UI experience.
+The CLI, package names, config file, and generated board continue to use `karya`.
+Motion-ready logo variants also live in `docs/spanda-breathe.svg`, `docs/spanda-orbit.svg`, and `docs/spanda-signal.svg`.
 
-- **Automatic Scanning**: Scans your codebase for TODO comments, FIXME markers, and markdown TODO files
-- **MCP Integration**: Exposes tools for Claude Code to add and manage issues directly
-- **Local SQLite Database**: All data stored locally with no cloud dependencies
-- **Race Condition Handling**: Robust handling of concurrent operations with proper locking
-- **Cross-Platform**: Works on macOS, Linux, and Windows (with Tauri desktop app coming soon)
+## Why This Exists
 
-## Installation
+- I keep humans and agents aligned around one durable task artifact: `BOARD.md`.
+- I turn scanner findings, manual issue capture, and AI review into one local workflow.
+- I keep writes explicit and reviewable instead of letting AI mutate your board silently.
+- I stay local-first by default, so your issue data does not require a hosted backend.
+
+## What Ships
+
+- `Spanda UI`: the browser-based operating surface for reviewing, filtering, creating, and updating issues.
+- `Karya runtime`: the scanner, SQLite model, board generator, and CLI.
+- `HTTP API`: the UI-facing API, defaulting to `http://127.0.0.1:9630`.
+- `MCP server`: structured tools for any MCP-capable client.
+- `Native AI review`: suggest-only Anthropic and OpenAI lanes with explicit human approval before writes.
+
+## Product Principles
+
+- Local-first storage with SQLite.
+- One generated board file that every agent can read.
+- Human approval before AI-created issues.
+- Production-friendly defaults instead of novelty abstractions.
+- Clear failure behavior: non-fatal sync warnings stay warnings, not false mutation failures.
+
+## Getting Started
+
+### 1. Clone and install
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/karya.git
-cd karya
-
-# Install dependencies
+git clone https://github.com/sriinnu/karya-board.git
+cd karya-board
 pnpm install
-
-# Build all packages
 pnpm build
 ```
 
-## Quick Start
-
-1. Create a `karya.config.json` in your project:
+### 2. Add `karya.config.json`
 
 ```json
 {
@@ -44,174 +59,204 @@ pnpm build
 }
 ```
 
-2. Run the scanner:
-
-```bash
-pnpm scanner:start
-```
-
-3. Start the local HTTP API for the web UI:
-
-```bash
-pnpm api:start
-```
-
-4. Start the MCP server for Claude Code integration:
-
-```bash
-pnpm mcp:start
-```
-
-5. Open the web UI:
-
-```bash
-pnpm dev
-```
-
-For local UI + API development together:
+### 3. Start the local app
 
 ```bash
 pnpm app:dev
 ```
 
-## Architecture
+Then open the exact local URL printed by Vite. On a clean machine that is usually [http://127.0.0.1:9631](http://127.0.0.1:9631).
+From there, click `Start Scanner` in the header. That starts the embedded scanner from the web UI and populates the dashboard.
 
+### 4. Understand the local runtimes
+
+| Runtime | Default | What it does |
+| --- | --- | --- |
+| Spanda UI | `127.0.0.1:9631` | Browser dashboard for analytics, docs, board flow, and AI review |
+| Karya API | `127.0.0.1:9630` | HTTP backend used by the UI for projects, issues, AI, and scanner control |
+| Scanner | no port | Embedded watcher/runtime that scans files, updates SQLite, and regenerates `BOARD.md` |
+
+The API defaults to `127.0.0.1:9630`.
+If `9630` or `9631` are busy, `pnpm app:dev` automatically picks the next free local ports and keeps the UI proxy aligned.
+`GET /` on the API returns JSON, not a web page, so the browser should open the Vite URL rather than the API root.
+
+If you prefer separate processes:
+
+```bash
+pnpm scanner:start
+pnpm api:start
+pnpm ui:dev
 ```
-karya/
-├── apps/
-│   ├── ui/                    # Vite + React web UI
-│   └── desktop/               # Tauri desktop app (coming soon)
-├── packages/
-│   ├── core/                  # Core business logic
-│   │   ├── db/               # SQLite database layer
-│   │   ├── scanner/          # File scanner and watcher
-│   │   └── board-gen         # BOARD.md generator
-│   └── mcp/                   # MCP server for Claude Code
-├── karya.config.json          # Configuration file
-└── BOARD.md                   # Generated task board
+
+If you want the scanner outside the web-controlled runtime, `pnpm scanner:start` runs it directly as a watcher process.
+
+If you want MCP tools for Claude Code, Codex, or another MCP-capable client:
+
+```bash
+pnpm mcp:start
 ```
+
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| `pnpm app:dev` | Runs the API and the Spanda UI together, auto-selecting free local ports when `9630` or `9631` are occupied |
+| `pnpm scanner:start` | Starts the scanner/watcher runtime |
+| `pnpm api:start` | Starts the HTTP API on port `9630` by default |
+| `pnpm ui:dev` | Starts the Vite UI |
+| `pnpm mcp:start` | Starts the MCP server |
+| `pnpm karya` | Runs the local CLI entrypoint |
+| `pnpm typecheck` | Runs TypeScript checks across root and packages |
+| `pnpm build` | Builds packages and the root CLI |
+| `pnpm test` | Runs root, core, MCP, and UI tests |
+| `pnpm smoke` | Runs the API smoke suite |
+| `pnpm verify` | Runs the full local release gate |
+
+## What Spanda Shows
+
+The main Spanda surface is designed to feel like a composed operating console rather than a generic backlog page.
+It keeps:
+
+- the current workspace scope visible,
+- scanner state and scanner start/restart control in the header,
+- a sticky header that compresses into a tighter island while you scroll,
+- issue lanes grouped by priority,
+- search, filtering, and density controls close to the board,
+- non-fatal sync warnings explicit,
+- AI review in a separate approval-first flow.
+
+The UI is intentionally light, glassy, and restrained. I keep it closer to an Apple-style productivity surface than a template dashboard.
+
+## AI Review
+
+Karya supports two built-in native provider lanes:
+
+| Provider | Required env var | Default model |
+| --- | --- | --- |
+| `anthropic` | `ANTHROPIC_API_KEY` | `claude-sonnet-4-20250514` |
+| `openai` | `OPENAI_API_KEY` | `gpt-5.1` |
+
+Optional runtime controls:
+
+```bash
+export KARYA_AI_PROVIDER=openai
+export ANTHROPIC_MODEL=claude-sonnet-4-20250514
+export OPENAI_MODEL=gpt-5.1
+export OPENAI_BASE_URL=https://api.openai.com/v1
+export KARYA_ANTHROPIC_MAX_TOKENS=1200
+export KARYA_ANTHROPIC_MAX_RETRIES=2
+export KARYA_ANTHROPIC_TIMEOUT_MS=20000
+export KARYA_ANTHROPIC_REQUEST_LIMIT=6
+export KARYA_ANTHROPIC_REQUEST_WINDOW_MS=60000
+export KARYA_OPENAI_MAX_TOKENS=1200
+export KARYA_OPENAI_MAX_RETRIES=2
+export KARYA_OPENAI_TIMEOUT_MS=20000
+export KARYA_OPENAI_REQUEST_LIMIT=6
+export KARYA_OPENAI_REQUEST_WINDOW_MS=60000
+```
+
+### AI Safety Boundaries
+
+- I send project stats, issue summaries, the selected provider/model, and your optional prompt guidance.
+- I do not send raw project files by default.
+- I do not auto-create issues.
+- I require human approval before any suggestion becomes a stored issue.
+
+### AI HTTP Routes
+
+- `GET /api/ai/status`
+- `POST /api/ai/suggest-issues`
+
+Example:
+
+```bash
+curl -X POST http://127.0.0.1:9630/api/ai/suggest-issues \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "projectId": "your-project-id",
+    "provider": "openai",
+    "model": "gpt-5.1",
+    "prompt": "Focus on missing reliability and test coverage work",
+    "maxSuggestions": 4
+  }'
+```
+
+## MCP Tools
+
+When the MCP server is running, any MCP-capable client can use:
+
+- `add_issue`
+- `list_issues`
+- `update_issue`
+- `delete_issue`
+- `suggest_issues`
+
+The `suggest_issues` tool is review-only. It never writes to SQLite or regenerates `BOARD.md` without human approval.
 
 ## Configuration
 
 | Option | Type | Description |
-|--------|------|-------------|
-| `projects` | array | List of projects to monitor |
-| `projects[].name` | string | Display name |
-| `projects[].path` | string | Path to project directory |
-| `projects[].include` | array | File patterns to include |
-| `projects[].exclude` | array | File patterns to exclude |
-| `boardOutput` | string | Path for BOARD.md output |
-| `scanDepth` | number | Maximum directory depth (default: 3) |
-| `scanner.debounceMs` | number | Debounce delay (default: 500) |
-| `database.path` | string | SQLite database path |
+| --- | --- | --- |
+| `projects` | `array` | List of monitored projects |
+| `projects[].name` | `string` | Display name shown in the UI |
+| `projects[].path` | `string` | Root path to scan |
+| `projects[].include` | `string[]` | Include patterns for relevant files |
+| `projects[].exclude` | `string[]` | Exclude patterns for directories or files |
+| `boardOutput` | `string` | Output path for generated `BOARD.md` |
+| `scanDepth` | `number` | Maximum directory depth |
+| `scanner.debounceMs` | `number` | Scanner debounce delay |
+| `database.path` | `string` | SQLite file location |
 
-## MCP Tools
+## Architecture
 
-When the MCP server is running, Claude Code can use these tools:
-
-### add_issue
-
-```typescript
-add_issue({
-  project: "my-project",
-  title: "Fix memory leak",
-  description: "Found in src/memory.ts",
-  priority: "high"
-})
+```text
+karya/
+├── apps/
+│   └── ui/                 # Spanda web UI
+├── packages/
+│   ├── core/               # DB, scanner, board generation, runtime
+│   └── mcp/                # MCP server and HTTP API
+├── src/                    # Root CLI
+├── scripts/                # Smoke and support scripts
+├── karya.config.json       # Local project config
+└── BOARD.md                # Generated issue board
 ```
 
-### list_issues
+### Package Responsibilities
 
-```typescript
-list_issues({
-  project: "my-project",
-  status: "open",
-  priority: "high"
-})
-```
+- `packages/core`: the real system of record for scanning, issue persistence, locking, and board generation.
+- `packages/mcp`: structured automation entrypoints, HTTP routes, and AI-provider adapters.
+- `apps/ui`: the Spanda interface for humans.
+- `src/cli.ts`: the root CLI surface for scripting and local flows.
 
-### update_issue
+## Production Notes
 
-```typescript
-update_issue({
-  issueId: "abc123",
-  status: "done"
-})
-```
+The current build is hardened for local production use:
 
-### delete_issue
-
-```typescript
-delete_issue({
-  issueId: "abc123"
-})
-```
+- mutation success is not falsely downgraded to `500` when board sync later warns,
+- stale UI responses are suppressed instead of overwriting newer filters,
+- scanner cleanup removes stale findings when files disappear or become unreadable,
+- debounced board generation is shutdown-safe,
+- the add-issue modal and major board controls expose stronger accessibility semantics,
+- provider failures fail closed when an unavailable AI lane is explicitly requested.
 
 ## Development
 
 ```bash
-# Run all packages in development mode
-pnpm dev
-
-# Run type checking
 pnpm typecheck
-
-# Run package and root CLI tests
+pnpm build
 pnpm test
-
-# Run API smoke checks (CRUD/search/pagination/board sync)
-# I build the required core dist artifact automatically when it is missing.
 pnpm smoke
-
-# Run the full local release gate
 pnpm verify
-
-# Run database migrations
-pnpm db:migrate
 ```
 
-## Release Hardening
+`pnpm verify` is the release gate. It runs type checks, builds, tests, and smoke verification together.
 
-I keep release automation in two layers:
+## Notes
 
-- Local gate: `pnpm verify` runs typecheck, build, tests, then API smoke checks.
-- CI gate: GitHub Actions runs the same sequence on every push and pull request in `.github/workflows/ci.yml`.
-
-### Local Autonomous Loop
-
-I keep a lightweight local verify watcher at `scripts/verify-watch.mjs`. It watches the repo, debounces change bursts, and reruns the verification command serially.
-
-```bash
-# Full gate on every change
-node scripts/verify-watch.mjs
-
-# Faster loop while iterating locally
-node scripts/verify-watch.mjs --quick
-
-# One-shot run for debugging watcher config
-node scripts/verify-watch.mjs --once --command "pnpm verify"
-```
-
-By default I run `pnpm verify`. I ignore generated/noisy paths such as `.git`, `node_modules`, `dist`, and `coverage`.
-
-The smoke suite runs without a browser and uses an isolated temp config/database so it does not mutate your project data. It validates:
-
-- `/api/issues` create, update, and delete flows
-- search and pagination query behavior
-- successful BOARD.md regeneration path
-- non-fatal warning path when BOARD.md regeneration fails after a successful mutation
-
-## Tech Stack
-
-| Concern | Technology |
-|---------|------------|
-| UI | React + TypeScript + Vite |
-| Styling | Tailwind CSS |
-| State | Zustand |
-| Database | better-sqlite3 |
-| File Watching | chokidar |
-| MCP | @modelcontextprotocol/sdk |
-| Desktop | Tauri (coming soon) |
+- Node `>=20` is required.
+- `pnpm@9` is the expected package manager.
+- The repository is still named `karya` even though the UI product surface is branded `Spanda`.
 
 ## License
 

@@ -7,7 +7,6 @@
 import type {
   IssuePriority,
   IssueStatus,
-  Project,
   ProjectStats,
 } from '@karya/core';
 import { create } from 'zustand';
@@ -18,11 +17,20 @@ import {
   fetchProjects,
   type CreateIssueInput,
   type Issue,
+  type ProjectOverview,
   type UpdateIssueInput,
   updateIssue as updateIssueRequest,
 } from '../api';
 
-export type { CreateIssueInput, Issue, IssuePriority, IssueStatus, Project, ProjectStats, UpdateIssueInput };
+export type {
+  CreateIssueInput,
+  Issue,
+  IssuePriority,
+  IssueStatus,
+  ProjectOverview,
+  ProjectStats,
+  UpdateIssueInput,
+};
 
 /**
  * UI state for filters, pagination, and request status.
@@ -57,7 +65,7 @@ export interface UIState {
  */
 interface AppState {
   /** Known projects */
-  projects: Project[];
+  projects: ProjectOverview[];
   /** Current page of issues */
   issues: Issue[];
   /** Aggregated stats by project ID */

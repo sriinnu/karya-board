@@ -10,7 +10,7 @@
   },
   "scripts": {
     "dev": "pnpm --parallel -r run dev",
-    "app:dev": "pnpm --parallel api:start ui:dev",
+    "app:dev": "node ./scripts/dev-app.mjs",
     "build": "pnpm -r run build && tsc -p tsconfig.cli.json",
     "typecheck": "pnpm -r run typecheck && tsc -p tsconfig.cli.json --noEmit",
     "test": "pnpm test:root && pnpm test:packages",
@@ -28,7 +28,7 @@
   "keywords": [
     "task-board",
     "ai",
-    "claude",
+    "agents",
     "mcp",
     "todo",
     "productivity"

@@ -21,6 +21,7 @@ export function ProjectList() {
     }),
     { total: 0, open: 0, inProgress: 0, critical: 0 }
   );
+  const toProjectGlyph = (name: string) => name.trim().charAt(0).toUpperCase() || 'K';
 
   return (
     <nav className="project-rail" aria-label="Project scope">
@@ -28,7 +29,7 @@ export function ProjectList() {
         <div className="sidebar-title">Workspace Scope</div>
         <h2 className="rail-heading">Projects</h2>
         <p className="rail-copy">
-          I keep scope selection tight here so the board stays focused and the counts stay legible.
+          I keep scope, documentation readiness, and issue load visible here.
         </p>
         <div className="rail-metrics">
           <div className="rail-metric">
@@ -54,11 +55,20 @@ export function ProjectList() {
           aria-pressed={ui.selectedProjectId === null}
         >
           <div className="project-card-top">
-            <span className="project-card-name">All Projects</span>
+            <div className="project-card-identity">
+              <span className="project-card-glyph" aria-hidden="true">
+                A
+              </span>
+              <div>
+                <span className="project-card-name">All Projects</span>
+                <p className="project-card-caption">A wide-angle view across the full workspace.</p>
+              </div>
+            </div>
             <span className="project-card-count">{totalStats.total}</span>
           </div>
           <div className="project-card-details">
             <span className="project-pill">{projects.length} tracked</span>
+            <span className="project-pill">{projects.filter((project) => project.analytics.docsCount > 0).length} documented</span>
             {totalStats.inProgress > 0 && (
               <span className="project-pill" data-tone="progress">
                 {totalStats.inProgress} in progress
@@ -85,7 +95,17 @@ export function ProjectList() {
               aria-pressed={isSelected}
             >
               <div className="project-card-top">
-                <span className="project-card-name">{project.name}</span>
+                <div className="project-card-identity">
+                  <span className="project-card-glyph" aria-hidden="true">
+                    {toProjectGlyph(project.name)}
+                  </span>
+                  <div>
+                    <span className="project-card-name">{project.name}</span>
+                    <p className="project-card-caption">
+                      {projectStats?.open ?? 0} open, {projectStats?.inProgress ?? 0} moving now
+                    </p>
+                  </div>
+                </div>
                 <span className="project-card-count">{projectStats?.total ?? 0}</span>
               </div>
               {projectStats && (
@@ -93,9 +113,19 @@ export function ProjectList() {
                   {projectStats.open > 0 && (
                     <span className="project-pill">{projectStats.open} open</span>
                   )}
+                  {project.analytics.docsCount > 0 && (
+                    <span className="project-pill">
+                      {project.analytics.docsCount} docs
+                    </span>
+                  )}
                   {projectStats.inProgress > 0 && (
                     <span className="project-pill" data-tone="progress">
                       {projectStats.inProgress} in progress
+                    </span>
+                  )}
+                  {project.analytics.hasArchitecture && (
+                    <span className="project-pill" data-tone="docs">
+                      Architecture
                     </span>
                   )}
                   {projectStats.critical > 0 && (
