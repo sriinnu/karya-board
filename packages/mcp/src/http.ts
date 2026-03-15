@@ -4,12 +4,18 @@
  * @packageDocumentation
  */
 
+import fs from 'node:fs';
 import {
-  createServer,
+  createServer as createHttpServer,
   type IncomingMessage,
   type Server as HttpServer,
   type ServerResponse,
 } from 'node:http';
+import {
+  createServer as createHttpsServer,
+  type Server as HttpsServer,
+} from 'node:https';
+import path from 'node:path';
 import type { BoardGenerator, Database, KaryaConfig, ProjectStats } from '@karya/core';
 import { createBoardGenerator, createDatabase, createLogger } from '@karya/core';
 import {
@@ -103,6 +109,10 @@ export interface ApiServerOptions {
   port?: number;
   /** Optional config path used for persistence routes */
   configPath?: string;
+  /** Path to TLS certificate file (enables HTTPS when provided with sslKey) */
+  sslCert?: string;
+  /** Path to TLS private key file */
+  sslKey?: string;
 }
 
 /**
@@ -139,8 +149,8 @@ export class KaryaApiServer {
   /** Backing database instance */
   private db: Database | null = null;
 
-  /** HTTP server instance */
-  private server: HttpServer | null = null;
+  /** HTTP or HTTPS server instance */
+  private server: HttpServer | HttpsServer | null = null;
 
   /** BOARD.md generator */
   private boardGenerator: BoardGenerator | null = null;
@@ -162,6 +172,10 @@ export class KaryaApiServer {
   /** Optional config file path for settings persistence */
   private readonly configPath?: string;
 
+  /** Optional TLS cert/key paths for HTTPS */
+  private readonly sslCert?: string;
+  private readonly sslKey?: string;
+
   /** In-memory normalized config */
   private config: KaryaConfig | null = null;
 
@@ -174,6 +188,8 @@ export class KaryaApiServer {
     this.host = options.host ?? DEFAULT_API_HOST;
     this.port = normalizePort(options.port ?? Number(process.env.KARYA_API_PORT));
     this.configPath = options.configPath;
+    this.sslCert = options.sslCert ?? process.env.KARYA_SSL_CERT;
+    this.sslKey = options.sslKey ?? process.env.KARYA_SSL_KEY;
   }
 
   /**
@@ -195,9 +211,20 @@ export class KaryaApiServer {
       config,
       boardGenerator: this.boardGenerator,
     });
-    this.server = createServer((request, response) => {
+    const handler = (request: IncomingMessage, response: ServerResponse) => {
       void this.handleRequest(request, response);
-    });
+    };
+
+    if (this.sslCert && this.sslKey) {
+      const certPath = path.resolve(this.sslCert);
+      const keyPath = path.resolve(this.sslKey);
+      this.server = createHttpsServer(
+        { cert: fs.readFileSync(certPath), key: fs.readFileSync(keyPath) },
+        handler
+      );
+    } else {
+      this.server = createHttpServer(handler);
+    }
     this.server.timeout = 30000;
     this.server.headersTimeout = 10000;
     this.server.requestTimeout = 30000;
@@ -217,7 +244,8 @@ export class KaryaApiServer {
       });
     });
 
-    logger.info(`Karya API server listening on http://${this.host}:${this.port}`);
+    const protocol = this.sslCert && this.sslKey ? 'https' : 'http';
+    logger.info(`Karya API server listening on ${protocol}://${this.host}:${this.port}`);
   }
 
   /**
@@ -283,11 +311,12 @@ export class KaryaApiServer {
     try {
       if (request.method === 'GET' && pathname === '/') {
         const uiPort = Number(process.env.KARYA_UI_PORT ?? 9631);
+        const uiProtocol = this.sslCert && this.sslKey ? 'https' : 'http';
         this.sendJson(response, 200, {
           success: true,
           service: 'karya-api',
           message: 'This is the local Karya HTTP API. Open the Spanda UI separately.',
-          uiUrl: `http://127.0.0.1:${uiPort}`,
+          uiUrl: `${uiProtocol}://127.0.0.1:${uiPort}`,
           healthUrl: '/api/health',
         });
         return;
@@ -706,7 +735,7 @@ export class KaryaApiServer {
    * @returns Active HTTP server instance
    * @internal
    */
-  private mustGetServer(): HttpServer {
+  private mustGetServer(): HttpServer | HttpsServer {
     if (!this.server) {
       throw new Error('API server not initialized');
     }

@@ -5,7 +5,9 @@
  */
 
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { createServer } from 'node:net';
+import { resolve } from 'node:path';
 import process from 'node:process';
 
 const DEFAULT_API_PORT = 9630;
@@ -28,12 +30,23 @@ async function main() {
     console.log(`[dev-app] UI port ${DEFAULT_UI_PORT} is busy. Using ${uiPort} instead.`);
   }
 
+  // Auto-detect local SSL certs
+  const certPath = process.env.KARYA_SSL_CERT ?? resolve(process.cwd(), 'certs/localhost+2.pem');
+  const keyPath = process.env.KARYA_SSL_KEY ?? resolve(process.cwd(), 'certs/localhost+2-key.pem');
+  const hasSsl = existsSync(certPath) && existsSync(keyPath);
+  const protocol = hasSsl ? 'https' : 'http';
+
+  if (hasSsl) {
+    console.log(`[dev-app] Local SSL certs detected. Running over HTTPS.`);
+  }
+
   const sharedEnv = {
     ...process.env,
     KARYA_API_PORT: String(apiPort),
     KARYA_UI_PORT: String(uiPort),
     VITE_DEV_PORT: String(uiPort),
     VITE_KARYA_API_PORT: String(apiPort),
+    ...(hasSsl ? { KARYA_SSL_CERT: certPath, KARYA_SSL_KEY: keyPath } : {}),
   };
 
   // I launch the API and UI independently so either one can log clearly.
