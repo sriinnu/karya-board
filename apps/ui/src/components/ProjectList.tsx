@@ -4,7 +4,24 @@
  * @packageDocumentation
  */
 
-import { useStore } from '../store';
+import { useStore, type ProjectOverview } from '../store';
+
+/**
+ * Computes a project health score from 0-100 based on urgency, completion, and docs.
+ * @internal
+ */
+function computeHealth(project: ProjectOverview): { score: number; label: string; tone: string } {
+  let score = 50;
+  score += project.analytics.completionRate * 0.3;
+  score -= project.analytics.urgentCount * 5;
+  score += project.analytics.hasReadme ? 5 : -5;
+  score += project.analytics.hasArchitecture ? 5 : -5;
+  score += project.analytics.hasSpec ? 5 : 0;
+  score = Math.min(100, Math.max(0, Math.round(score)));
+  const label = score >= 75 ? 'Healthy' : score >= 45 ? 'At Risk' : 'Critical';
+  const tone = score >= 75 ? 'healthy' : score >= 45 ? 'warning' : 'critical';
+  return { score, label, tone };
+}
 
 /**
  * Sidebar component displaying all projects with their issue counts.
@@ -100,7 +117,18 @@ export function ProjectList() {
                     {toProjectGlyph(project.name)}
                   </span>
                   <div>
-                    <span className="project-card-name">{project.name}</span>
+                    <div className="flex items-center gap-xs">
+                      <span className="project-card-name">{project.name}</span>
+                      {(() => {
+                        const health = computeHealth(project);
+                        return (
+                          <>
+                            <span className={`health-dot health-dot-${health.tone}`} title={`${health.label} (${health.score})`} />
+                            <span className={`health-label health-label-${health.tone}`}>{health.label}</span>
+                          </>
+                        );
+                      })()}
+                    </div>
                     <p className="project-card-caption">
                       {projectStats?.open ?? 0} open, {projectStats?.inProgress ?? 0} moving now
                     </p>
@@ -109,31 +137,41 @@ export function ProjectList() {
                 <span className="project-card-count">{projectStats?.total ?? 0}</span>
               </div>
               {projectStats && (
-                <div className="project-card-details">
-                  {projectStats.open > 0 && (
-                    <span className="project-pill">{projectStats.open} open</span>
+                <>
+                  <div className="project-card-details">
+                    {projectStats.open > 0 && (
+                      <span className="project-pill">{projectStats.open} open</span>
+                    )}
+                    {project.analytics.docsCount > 0 && (
+                      <span className="project-pill">
+                        {project.analytics.docsCount} docs
+                      </span>
+                    )}
+                    {projectStats.inProgress > 0 && (
+                      <span className="project-pill" data-tone="progress">
+                        {projectStats.inProgress} in progress
+                      </span>
+                    )}
+                    {project.analytics.hasArchitecture && (
+                      <span className="project-pill" data-tone="docs">
+                        Architecture
+                      </span>
+                    )}
+                    {projectStats.critical > 0 && (
+                      <span className="project-pill" data-tone="critical">
+                        {projectStats.critical} critical
+                      </span>
+                    )}
+                  </div>
+                  {projectStats.total > 0 && (
+                    <div className="priority-bar" aria-label="Priority distribution">
+                      {projectStats.critical > 0 && <div className="priority-bar-segment priority-bar-critical" style={{ flex: projectStats.critical }} />}
+                      {projectStats.high > 0 && <div className="priority-bar-segment priority-bar-high" style={{ flex: projectStats.high }} />}
+                      {projectStats.medium > 0 && <div className="priority-bar-segment priority-bar-medium" style={{ flex: projectStats.medium }} />}
+                      {projectStats.low > 0 && <div className="priority-bar-segment priority-bar-low" style={{ flex: projectStats.low }} />}
+                    </div>
                   )}
-                  {project.analytics.docsCount > 0 && (
-                    <span className="project-pill">
-                      {project.analytics.docsCount} docs
-                    </span>
-                  )}
-                  {projectStats.inProgress > 0 && (
-                    <span className="project-pill" data-tone="progress">
-                      {projectStats.inProgress} in progress
-                    </span>
-                  )}
-                  {project.analytics.hasArchitecture && (
-                    <span className="project-pill" data-tone="docs">
-                      Architecture
-                    </span>
-                  )}
-                  {projectStats.critical > 0 && (
-                    <span className="project-pill" data-tone="critical">
-                      {projectStats.critical} critical
-                    </span>
-                  )}
-                </div>
+                </>
               )}
             </button>
           );

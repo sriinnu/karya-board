@@ -84,17 +84,17 @@ export function DashboardOverview() {
             Architecture, docs, scanner coverage, and work in flight stay visible without burying the board.
           </p>
         </div>
-        <div className="dashboard-overview-callout">
-          <span className="dashboard-overview-callout-label">Immediate Risk</span>
-          <strong className="dashboard-overview-callout-title">
-            {topRiskProject?.name ?? 'No active risk'}
-          </strong>
-          <span className="dashboard-overview-callout-copy">
-            {topRiskProject
-              ? `${topRiskProject.analytics.urgentCount} urgent · ${topRiskProject.stats.open} open`
-              : 'No project currently leads the risk stack.'}
-          </span>
-        </div>
+        {topRiskProject && topRiskProject.analytics.urgentCount > 0 && (
+          <div className="dashboard-overview-callout dashboard-overview-callout-urgent">
+            <span className="dashboard-overview-callout-label">Immediate Risk</span>
+            <strong className="dashboard-overview-callout-title">
+              {topRiskProject.name}
+            </strong>
+            <span className="dashboard-overview-callout-copy">
+              {topRiskProject.analytics.urgentCount} urgent · {topRiskProject.stats.open} open
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="dashboard-metric-grid" aria-label="Top-level analytics">
@@ -109,11 +109,24 @@ export function DashboardOverview() {
           detail="Critical and high-priority items not yet done."
           tone={scopeUrgent > 0 ? 'critical' : 'neutral'}
         />
-        <MetricCard
-          label="Completion"
-          value={`${scopeCompletion}%`}
-          detail="Share of tracked work already complete."
-        />
+        <article className="dashboard-metric-card dashboard-metric-completion">
+          <div>
+            <span className="dashboard-metric-label">Completion</span>
+            <span className="dashboard-metric-detail">Share of tracked work already complete.</span>
+          </div>
+          <div
+            className="completion-ring"
+            style={{
+              background: `conic-gradient(from -90deg, var(--color-accent) ${scopeCompletion * 3.6}deg, rgba(17,24,39,0.08) ${scopeCompletion * 3.6}deg)`,
+            }}
+            role="img"
+            aria-label={`${scopeCompletion}% complete`}
+          >
+            <div className="completion-ring-inner">
+              <strong className="completion-ring-value">{scopeCompletion}%</strong>
+            </div>
+          </div>
+        </article>
         <MetricCard
           label={selectedProject ? 'Docs' : 'Docs Coverage'}
           value={selectedProject ? String(scopeDocs) : `${documentedProjects}/${projects.length || 0}`}
@@ -123,6 +136,17 @@ export function DashboardOverview() {
               : 'Projects with surfaced docs across the portfolio.'
           }
         />
+      </div>
+
+      <div className="status-bar" aria-label="Status distribution">
+        {scopeStats.open > 0 && <div className="status-bar-segment status-bar-open" style={{ flex: scopeStats.open }} />}
+        {scopeStats.inProgress > 0 && <div className="status-bar-segment status-bar-progress" style={{ flex: scopeStats.inProgress }} />}
+        {scopeStats.done > 0 && <div className="status-bar-segment status-bar-done" style={{ flex: scopeStats.done }} />}
+      </div>
+      <div className="status-bar-legend">
+        <span className="status-bar-legend-item"><span className="status-bar-legend-dot" style={{ background: 'var(--color-accent)' }} />{scopeStats.open} open</span>
+        <span className="status-bar-legend-item"><span className="status-bar-legend-dot" style={{ background: 'var(--color-progress)' }} />{scopeStats.inProgress} in progress</span>
+        <span className="status-bar-legend-item"><span className="status-bar-legend-dot" style={{ background: 'var(--color-low)' }} />{scopeStats.done} done</span>
       </div>
 
       <div className="dashboard-spotlight-grid">

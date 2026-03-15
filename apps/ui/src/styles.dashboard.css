@@ -5,7 +5,7 @@
 
 .content-stack {
   display: grid;
-  gap: 20px;
+  gap: 16px;
 }
 
 .dashboard-overview {
@@ -111,9 +111,10 @@
 
 .dashboard-metric-value,
 .intelligence-stat-value {
-  font-size: 2rem;
-  font-weight: 700;
-  letter-spacing: -0.06em;
+  font-size: 2.6rem;
+  font-weight: 800;
+  letter-spacing: -0.07em;
+  line-height: 1;
 }
 
 .dashboard-metric-detail,
@@ -373,6 +374,123 @@
   padding: 16px;
   border-radius: 22px;
   background: rgba(17, 24, 39, 0.03);
+}
+
+/* ── Completion ring (conic-gradient) ── */
+
+.completion-ring {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.completion-ring-inner {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.completion-ring-value {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--color-text-primary);
+}
+
+.dashboard-metric-completion {
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+}
+
+.dashboard-metric-completion .dashboard-metric-label {
+  margin-bottom: 0;
+}
+
+/* ── Conditional risk callout ── */
+
+.dashboard-overview-callout-urgent {
+  border-color: rgba(255, 69, 58, 0.14);
+  background:
+    linear-gradient(180deg, rgba(255, 250, 249, 0.94) 0%, rgba(255, 245, 244, 0.98) 100%);
+}
+
+/* ── Spotlight labels with handwritten font ── */
+
+.dashboard-spotlight-label {
+  font-family: var(--font-hand);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--color-accent-strong);
+}
+
+/* ── Card hover micro-interactions ── */
+
+.dashboard-metric-card,
+.dashboard-spotlight-card,
+.intelligence-stat-card {
+  transition:
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dashboard-metric-card:hover,
+.dashboard-spotlight-card:hover,
+.intelligence-stat-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(17, 24, 39, 0.1);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.09);
+}
+
+/* ── Status distribution bar ── */
+
+.status-bar {
+  display: flex;
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(17, 24, 39, 0.06);
+}
+
+.status-bar-segment {
+  min-width: 3px;
+  transition: flex 600ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.status-bar-open { background: var(--color-accent); }
+.status-bar-progress { background: var(--color-progress); }
+.status-bar-done { background: var(--color-low); }
+
+.status-bar-legend {
+  display: flex;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.status-bar-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.status-bar-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
 }
 
 @media (max-width: 1360px) {

@@ -1,6 +1,6 @@
 /**
  * Zustand store for Karya UI state management.
- * I keep API orchestration here so the components stay mostly declarative.
+ * Orchestrates API calls, optimistic updates, filter persistence, and bulk actions.
  * @packageDocumentation
  */
 
@@ -33,7 +33,7 @@ export type {
 };
 
 /**
- * UI state for filters, pagination, and request status.
+ * UI state for filters, pagination, view modes, and request status.
  * @public
  */
 export interface UIState {
@@ -57,6 +57,14 @@ export interface UIState {
   error: string | null;
   /** Latest non-fatal backend warning */
   warning?: string | null;
+  /** Board view mode: priority lanes or flat list */
+  viewMode: 'lanes' | 'list';
+  /** Sort order within lanes or list */
+  sortOrder: 'newest' | 'oldest' | 'alpha';
+  /** Whether focus/zen mode hides secondary panels */
+  isFocusMode: boolean;
+  /** Currently selected issue IDs for bulk actions */
+  selectedIssueIds: string[];
 }
 
 /**
@@ -80,9 +88,9 @@ interface AppState {
   refresh: () => Promise<void>;
   /** Creates a new issue then refreshes board data */
   createIssue: (input: CreateIssueInput) => Promise<void>;
-  /** Updates an issue then refreshes board data */
+  /** Updates an issue with optimistic local update */
   updateIssue: (issueId: string, updates: UpdateIssueInput) => Promise<void>;
-  /** Deletes an issue then refreshes board data */
+  /** Deletes an issue with optimistic local removal */
   deleteIssue: (issueId: string) => Promise<void>;
   /** Selects the active project filter */
   setSelectedProject: (projectId: string | null) => void;
@@ -102,16 +110,74 @@ interface AppState {
   setWarning: (warning: string | null) => void;
   /** Clears the latest non-fatal backend warning */
   clearWarning: () => void;
+  /** Switches board view mode */
+  setViewMode: (mode: 'lanes' | 'list') => void;
+  /** Changes the sort order */
+  setSortOrder: (order: 'newest' | 'oldest' | 'alpha') => void;
+  /** Toggles focus/zen mode */
+  toggleFocusMode: () => void;
+  /** Toggles an issue in the multi-selection set */
+  toggleIssueSelection: (issueId: string) => void;
+  /** Clears all selected issues */
+  clearSelection: () => void;
+  /** Bulk-updates status on all selected issues */
+  bulkUpdateStatus: (status: IssueStatus) => Promise<void>;
 }
 
 /**
- * Shared initial UI state.
+ * LocalStorage key for persisted filter state.
  * @internal
  */
+const STORAGE_KEY = 'spanda-filters';
+
+/**
+ * Loads persisted filter preferences from localStorage.
+ * @internal
+ */
+function loadPersistedFilters(): Partial<UIState> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return {};
+    const data = JSON.parse(raw) as Record<string, unknown>;
+    return {
+      selectedProjectId: typeof data.selectedProjectId === 'string' ? data.selectedProjectId : null,
+      statusFilter: typeof data.statusFilter === 'string' ? (data.statusFilter as IssueStatus | 'all') : 'all',
+      priorityFilter: typeof data.priorityFilter === 'string' ? (data.priorityFilter as IssuePriority | 'all') : 'all',
+      viewMode: data.viewMode === 'list' ? 'list' : 'lanes',
+      sortOrder: data.sortOrder === 'oldest' ? 'oldest' : data.sortOrder === 'alpha' ? 'alpha' : 'newest',
+    };
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Persists filter preferences to localStorage.
+ * @internal
+ */
+function persistFilters(ui: UIState): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      selectedProjectId: ui.selectedProjectId,
+      statusFilter: ui.statusFilter,
+      priorityFilter: ui.priorityFilter,
+      viewMode: ui.viewMode,
+      sortOrder: ui.sortOrder,
+    }));
+  } catch {
+    /* Ignore storage failures */
+  }
+}
+
+/**
+ * Shared initial UI state merged with any persisted preferences.
+ * @internal
+ */
+const persisted = loadPersistedFilters();
 const INITIAL_UI_STATE: UIState = {
-  selectedProjectId: null,
-  statusFilter: 'all',
-  priorityFilter: 'all',
+  selectedProjectId: persisted.selectedProjectId ?? null,
+  statusFilter: persisted.statusFilter ?? 'all',
+  priorityFilter: persisted.priorityFilter ?? 'all',
   search: '',
   page: 1,
   pageSize: 20,
@@ -119,11 +185,15 @@ const INITIAL_UI_STATE: UIState = {
   isLoading: false,
   error: null,
   warning: null,
+  viewMode: persisted.viewMode ?? 'lanes',
+  sortOrder: persisted.sortOrder ?? 'newest',
+  isFocusMode: false,
+  selectedIssueIds: [],
 };
 
 /**
  * Monotonic request token for issue-list loads.
- * I use it to ensure late responses cannot overwrite fresher UI state.
+ * Ensures late responses cannot overwrite fresher UI state.
  * @internal
  */
 let latestIssueRequestId = 0;
@@ -242,7 +312,11 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   updateIssue: async (issueId, updates) => {
+    // Optimistic: apply changes locally before the network round-trip
     set((state) => ({
+      issues: state.issues.map((issue) =>
+        issue.id === issueId ? { ...issue, ...updates, updatedAt: Date.now() } : issue
+      ),
       ui: {
         ...state.ui,
         error: null,
@@ -258,8 +332,11 @@ export const useStore = create<AppState>((set, get) => ({
           warning: result.warning ?? null,
         },
       }));
-      await get().refresh();
+      // Background refresh for full consistency
+      void get().refresh().catch(() => undefined);
     } catch (error) {
+      // Rollback on failure
+      await get().refresh().catch(() => undefined);
       set((state) => ({
         ui: {
           ...state.ui,
@@ -271,11 +348,15 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   deleteIssue: async (issueId) => {
+    // Optimistic: remove locally before the network round-trip
     set((state) => ({
+      issues: state.issues.filter((issue) => issue.id !== issueId),
       ui: {
         ...state.ui,
         error: null,
         warning: null,
+        totalCount: Math.max(0, state.ui.totalCount - 1),
+        selectedIssueIds: state.ui.selectedIssueIds.filter((id) => id !== issueId),
       },
     }));
 
@@ -289,18 +370,15 @@ export const useStore = create<AppState>((set, get) => ({
       }));
 
       const { issues, ui } = get();
-      const lastItemOnPage = issues.length === 1 && ui.page > 1;
-      if (lastItemOnPage) {
+      if (issues.length === 0 && ui.page > 1) {
         set((state) => ({
-          ui: {
-            ...state.ui,
-            page: state.ui.page - 1,
-          },
+          ui: { ...state.ui, page: state.ui.page - 1 },
         }));
       }
 
-      await get().refresh();
+      void get().refresh().catch(() => undefined);
     } catch (error) {
+      await get().refresh().catch(() => undefined);
       set((state) => ({
         ui: {
           ...state.ui,
@@ -311,32 +389,29 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  setSelectedProject: (projectId) =>
-    set((state) => ({
-      ui: {
-        ...state.ui,
-        selectedProjectId: projectId,
-        page: 1,
-      },
-    })),
+  setSelectedProject: (projectId) => {
+    set((state) => {
+      const next = { ...state.ui, selectedProjectId: projectId, page: 1 };
+      persistFilters(next);
+      return { ui: next };
+    });
+  },
 
-  setStatusFilter: (status) =>
-    set((state) => ({
-      ui: {
-        ...state.ui,
-        statusFilter: status,
-        page: 1,
-      },
-    })),
+  setStatusFilter: (status) => {
+    set((state) => {
+      const next = { ...state.ui, statusFilter: status, page: 1 };
+      persistFilters(next);
+      return { ui: next };
+    });
+  },
 
-  setPriorityFilter: (priority) =>
-    set((state) => ({
-      ui: {
-        ...state.ui,
-        priorityFilter: priority,
-        page: 1,
-      },
-    })),
+  setPriorityFilter: (priority) => {
+    set((state) => {
+      const next = { ...state.ui, priorityFilter: priority, page: 1 };
+      persistFilters(next);
+      return { ui: next };
+    });
+  },
 
   setSearch: (search) =>
     set((state) => ({
@@ -387,4 +462,63 @@ export const useStore = create<AppState>((set, get) => ({
         warning: null,
       },
     })),
+
+  setViewMode: (mode) => {
+    set((state) => {
+      const next = { ...state.ui, viewMode: mode };
+      persistFilters(next);
+      return { ui: next };
+    });
+  },
+
+  setSortOrder: (order) => {
+    set((state) => {
+      const next = { ...state.ui, sortOrder: order };
+      persistFilters(next);
+      return { ui: next };
+    });
+  },
+
+  toggleFocusMode: () =>
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        isFocusMode: !state.ui.isFocusMode,
+      },
+    })),
+
+  toggleIssueSelection: (issueId) =>
+    set((state) => {
+      const current = state.ui.selectedIssueIds;
+      const next = current.includes(issueId)
+        ? current.filter((id) => id !== issueId)
+        : [...current, issueId];
+      return { ui: { ...state.ui, selectedIssueIds: next } };
+    }),
+
+  clearSelection: () =>
+    set((state) => ({
+      ui: { ...state.ui, selectedIssueIds: [] },
+    })),
+
+  bulkUpdateStatus: async (status) => {
+    const { ui } = get();
+    const ids = [...ui.selectedIssueIds];
+    if (ids.length === 0) return;
+
+    // Optimistic: update all selected locally
+    set((state) => ({
+      issues: state.issues.map((issue) =>
+        ids.includes(issue.id) ? { ...issue, status, updatedAt: Date.now() } : issue
+      ),
+      ui: { ...state.ui, selectedIssueIds: [], error: null },
+    }));
+
+    try {
+      await Promise.all(ids.map((id) => updateIssueRequest(id, { status })));
+      void get().refresh().catch(() => undefined);
+    } catch {
+      await get().refresh().catch(() => undefined);
+    }
+  },
 }));

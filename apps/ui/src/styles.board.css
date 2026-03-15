@@ -5,7 +5,7 @@
 
 .surface-stack {
   display: grid;
-  gap: 20px;
+  gap: 16px;
 }
 
 .surface-panel {
@@ -381,6 +381,62 @@
 
 .done-lane[open] .lane-chevron {
   transform: rotate(90deg);
+}
+
+/* ── Priority-colored lane counts ── */
+
+.lane-critical .lane-count {
+  background: var(--color-critical-soft);
+  color: var(--color-critical);
+}
+
+.lane-high .lane-count {
+  background: var(--color-high-soft);
+  color: #b96d02;
+}
+
+.lane-medium .lane-count {
+  background: var(--color-medium-soft);
+  color: #9f7c00;
+}
+
+.lane-low .lane-count {
+  background: var(--color-low-soft);
+  color: #1f8f40;
+}
+
+.lane-done .lane-count {
+  background: rgba(17, 24, 39, 0.05);
+  color: var(--color-text-tertiary);
+}
+
+/* ── Lane progress bar ── */
+
+.lane-progress {
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.04);
+  overflow: hidden;
+}
+
+.lane-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 500ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lane-critical .lane-progress-fill { background: var(--color-critical); }
+.lane-high .lane-progress-fill { background: var(--color-high); }
+.lane-medium .lane-progress-fill { background: #d0a800; }
+.lane-low .lane-progress-fill { background: var(--color-low); }
+
+/* ── Empty state improvement ── */
+
+.empty-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
 }
 
 @media (max-width: 1180px) {

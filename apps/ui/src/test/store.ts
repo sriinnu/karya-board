@@ -20,6 +20,10 @@ export function resetStoreForTest(): void {
       isLoading: false,
       error: null,
       warning: null,
+      viewMode: 'lanes',
+      sortOrder: 'newest',
+      isFocusMode: false,
+      selectedIssueIds: [],
     },
   });
 }

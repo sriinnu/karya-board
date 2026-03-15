@@ -289,6 +289,75 @@
   color: var(--color-accent-strong);
 }
 
+/* ── Collapsible sidebar sections ── */
+
+.sidebar-collapsible {
+  display: grid;
+  gap: 12px;
+}
+
+.sidebar-collapsible-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.sidebar-collapsible-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.06);
+  color: var(--color-text-tertiary);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+/* ── Priority distribution bar ── */
+
+.priority-bar {
+  display: flex;
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(17, 24, 39, 0.06);
+  margin-top: 10px;
+}
+
+.priority-bar-segment {
+  min-width: 3px;
+  transition: flex 500ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.priority-bar-critical { background: var(--color-critical); }
+.priority-bar-high { background: var(--color-high); }
+.priority-bar-medium { background: #d0a800; }
+.priority-bar-low { background: var(--color-low); }
+
+/* ── Keyboard hint badges ── */
+
+.btn-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 5px;
+  background: rgba(17, 24, 39, 0.06);
+  color: var(--color-text-tertiary);
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  font-weight: 700;
+  margin-left: auto;
+  line-height: 1;
+}
+
 @media (max-width: 1100px) {
   .sidebar {
     position: static;

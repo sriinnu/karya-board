@@ -18,6 +18,8 @@ interface WorkspaceSidebarProps {
   onSuggestIssues: () => void;
   /** Opens the scan-settings modal */
   onEditScanSettings: () => void;
+  /** Opens the project management modal */
+  onManageProjects?: () => void;
   /** Whether issue creation is disabled */
   disableAddIssue?: boolean;
   /** Whether AI review is disabled */
@@ -53,6 +55,7 @@ export function WorkspaceSidebar({
   disableAddIssue = false,
   disableSuggestIssues = false,
   disableScanSettings = false,
+  onManageProjects,
 }: WorkspaceSidebarProps) {
   const { projects, ui } = useStore();
   const stats = projects.reduce<ProjectStats>(
@@ -147,6 +150,7 @@ export function WorkspaceSidebar({
             disabled={disableSuggestIssues}
           >
             Review AI
+            <kbd className="btn-kbd">A</kbd>
           </button>
           <button
             type="button"
@@ -155,11 +159,28 @@ export function WorkspaceSidebar({
             disabled={disableAddIssue}
           >
             Capture Issue
+            <kbd className="btn-kbd">N</kbd>
           </button>
         </div>
       </div>
 
-      <ProjectList />
+      <details open className="sidebar-collapsible">
+        <summary className="sidebar-collapsible-toggle">
+          <span className="sidebar-title">Projects</span>
+          <span className="sidebar-collapsible-count">{projects.length}</span>
+        </summary>
+        <ProjectList />
+        {onManageProjects && (
+          <button
+            type="button"
+            className="btn btn-ghost w-full"
+            onClick={onManageProjects}
+            style={{ marginTop: '10px', justifyContent: 'center', minHeight: '38px', fontSize: '0.84rem' }}
+          >
+            Manage Projects
+          </button>
+        )}
+      </details>
     </aside>
   );
 }

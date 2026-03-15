@@ -4,7 +4,7 @@
  * @packageDocumentation
  */
 
-import { startTransition, useDeferredValue, useEffect, useState } from 'react';
+import { startTransition, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useStore, type Issue, type ProjectStats } from '../store';
 import { IssueCard } from './IssueCard';
 
@@ -84,6 +84,10 @@ export function IssueBoard() {
     setSearch,
     setPage,
     setPageSize,
+    setViewMode,
+    setSortOrder,
+    clearSelection,
+    bulkUpdateStatus,
   } = useStore();
   const [searchDraft, setSearchDraft] = useState(ui.search);
   const deferredSearch = useDeferredValue(searchDraft);
@@ -146,7 +150,15 @@ export function IssueBoard() {
     }
   }, [deferredSearch, setSearch, ui.search]);
 
-  const grouped = issues.reduce(
+  const sortedIssues = useMemo(() => {
+    const sorted = [...issues];
+    if (ui.sortOrder === 'newest') sorted.sort((a, b) => b.updatedAt - a.updatedAt);
+    else if (ui.sortOrder === 'oldest') sorted.sort((a, b) => a.updatedAt - b.updatedAt);
+    else sorted.sort((a, b) => a.title.localeCompare(b.title));
+    return sorted;
+  }, [issues, ui.sortOrder]);
+
+  const grouped = useMemo(() => sortedIssues.reduce(
     (acc, issue) => {
       if (issue.status === 'done') {
         acc.done.push(issue);
@@ -164,7 +176,7 @@ export function IssueBoard() {
       },
       done: [] as Issue[],
     }
-  );
+  ), [sortedIssues]);
 
   return (
     <div className="surface-stack">
@@ -314,7 +326,44 @@ export function IssueBoard() {
         </div>
       </section>
 
-      <section className="surface-panel board-toolbar">
+      <section className="surface-panel board-toolbar" style={{ flexWrap: 'wrap' }}>
+        <div className="view-controls">
+          <div className="view-toggle" role="group" aria-label="View mode">
+            <button
+              type="button"
+              className={`view-toggle-btn ${ui.viewMode === 'lanes' ? 'active' : ''}`}
+              aria-pressed={ui.viewMode === 'lanes'}
+              title="Priority lanes"
+              onClick={() => setViewMode('lanes')}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className={`view-toggle-btn ${ui.viewMode === 'list' ? 'active' : ''}`}
+              aria-pressed={ui.viewMode === 'list'}
+              title="Flat list"
+              onClick={() => setViewMode('list')}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+              </svg>
+            </button>
+          </div>
+          <select
+            className="sort-select"
+            value={ui.sortOrder}
+            onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest' | 'alpha')}
+            aria-label="Sort order"
+          >
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="alpha">A-Z</option>
+          </select>
+        </div>
         <div className="board-summary">
           <strong className="board-summary-headline">{boardWindowLabel}</strong>
           <span className="board-summary-note">
@@ -363,6 +412,21 @@ export function IssueBoard() {
         </div>
       </section>
 
+      {ui.selectedIssueIds.length > 0 && (
+        <div className="selection-toolbar">
+          <span className="selection-toolbar-count">{ui.selectedIssueIds.length} selected</span>
+          <button type="button" className="btn" onClick={() => { void bulkUpdateStatus('in_progress'); }}>
+            Mark In Progress
+          </button>
+          <button type="button" className="btn" onClick={() => { void bulkUpdateStatus('done'); }}>
+            Mark Done
+          </button>
+          <button type="button" className="btn btn-deselect" onClick={clearSelection}>
+            Deselect
+          </button>
+        </div>
+      )}
+
       {issues.length === 0 ? (
         <section className="surface-panel empty-state">
           <div className="empty-state-icon" aria-hidden="true">
@@ -371,17 +435,39 @@ export function IssueBoard() {
               <path d="M9 9h6M9 13h6" />
             </svg>
           </div>
-          <div className="empty-state-title">No issues found</div>
+          <div className="empty-state-title">Nothing in this view yet</div>
           <div className="empty-state-text">
-            I could not find any issues in the current scope and filter set.
+            The board is empty for the current filters. Create an issue, run a scan, or widen the view.
           </div>
-          <div className="empty-state-note">
-            Create a manual issue, scan a project with TODO or FIXME markers, or clear the active
-            filters to widen the view.
+          <div className="empty-state-actions">
+            {activeFilterCount > 0 && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  setSearchDraft('');
+                  startTransition(() => {
+                    setSearch('');
+                    setStatusFilter('all');
+                    setPriorityFilter('all');
+                  });
+                }}
+              >
+                Clear Filters
+              </button>
+            )}
           </div>
         </section>
       ) : (
         <div className="surface-stack">
+          {ui.viewMode === 'list' ? (
+            <div className="issue-grid">
+              {sortedIssues.map((issue) => (
+                <IssueCard key={issue.id} issue={issue} />
+              ))}
+            </div>
+          ) : (
+          <>
           {PRIORITY_ORDER.map((priority) => {
             const priorityIssues = grouped.byPriority[priority];
             if (priorityIssues.length === 0) {
@@ -401,6 +487,12 @@ export function IssueBoard() {
                     </div>
                   </div>
                   <span className="lane-count">{priorityIssues.length}</span>
+                </div>
+                <div className="lane-progress">
+                  <div
+                    className="lane-progress-fill"
+                    style={{ width: `${issues.length > 0 ? (priorityIssues.length / issues.length) * 100 : 0}%` }}
+                  />
                 </div>
                 <div className="issue-grid">
                   {priorityIssues.map((issue) => (
@@ -441,6 +533,8 @@ export function IssueBoard() {
                 ))}
               </div>
             </details>
+          )}
+          </>
           )}
         </div>
       )}

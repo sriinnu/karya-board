@@ -3,12 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "description": "Local AI-powered task board that reads your codebase and generates actionable tasks",
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@10.32.1",
   "type": "module",
   "bin": {
     "karya": "./dist/cli.js"
   },
   "scripts": {
+    "start": "node ./scripts/dev-app.mjs",
     "dev": "pnpm --parallel -r run dev",
     "app:dev": "node ./scripts/dev-app.mjs",
     "build": "pnpm -r run build && tsc -p tsconfig.cli.json",

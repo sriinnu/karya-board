@@ -27,10 +27,10 @@
 
 .issue-card::before {
   position: absolute;
-  inset: 0 auto 0 0;
+  inset: 14px auto 14px 0;
   width: 4px;
   content: '';
-  border-radius: 26px 0 0 26px;
+  border-radius: 0 4px 4px 0;
   background: rgba(17, 24, 39, 0.08);
 }
 
@@ -45,6 +45,13 @@
 
 .issue-card.pending {
   opacity: 0.74;
+}
+
+.issue-card.is-selected {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+  background:
+    linear-gradient(180deg, rgba(0, 113, 227, 0.04) 0%, rgba(249, 250, 252, 0.98) 100%);
 }
 
 .issue-card.priority-critical::before {
@@ -405,6 +412,146 @@
   max-width: 520px;
   color: var(--color-text-secondary);
   line-height: 1.58;
+}
+
+/* ── Delete button: show only on hover ── */
+
+.issue-card > .issue-card-header > .icon-button {
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.issue-card:hover > .issue-card-header > .icon-button,
+.issue-card > .issue-card-header > .icon-button:focus-visible {
+  opacity: 1;
+}
+
+/* ── Staggered card entry animation ── */
+
+.issue-grid > .issue-card {
+  animation: lift-in 320ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.issue-grid > .issue-card:nth-child(1) { animation-delay: 0ms; }
+.issue-grid > .issue-card:nth-child(2) { animation-delay: 40ms; }
+.issue-grid > .issue-card:nth-child(3) { animation-delay: 80ms; }
+.issue-grid > .issue-card:nth-child(4) { animation-delay: 120ms; }
+.issue-grid > .issue-card:nth-child(5) { animation-delay: 160ms; }
+.issue-grid > .issue-card:nth-child(6) { animation-delay: 200ms; }
+.issue-grid > .issue-card:nth-child(n+7) { animation-delay: 240ms; }
+
+/* ── Source file badge (inline, monospace) ── */
+
+.badge-source {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 0.72rem;
+  background: rgba(17, 24, 39, 0.04);
+  cursor: pointer;
+}
+
+.badge-source:hover {
+  background: rgba(0, 113, 227, 0.08);
+  color: var(--color-accent-strong);
+}
+
+/* ── Inline priority switch (dot buttons) ── */
+
+.priority-switch {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.priority-switch-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: none;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    transform 160ms ease;
+  padding: 0;
+}
+
+.priority-switch-btn:hover:not(:disabled) {
+  transform: scale(1.15);
+}
+
+.priority-switch-btn.active {
+  border-color: currentColor;
+}
+
+.priority-switch-btn:disabled {
+  cursor: default;
+}
+
+.priority-switch-btn .priority-dot {
+  width: 10px;
+  height: 10px;
+}
+
+/* ── Issue staleness indicator ── */
+
+.issue-timestamp[data-age="stale"] {
+  color: var(--color-high);
+}
+
+.issue-timestamp[data-age="ancient"] {
+  color: var(--color-critical);
+}
+
+/* ── Toast notifications ── */
+
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 50;
+  display: grid;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  font-size: 0.9rem;
+  font-weight: 600;
+  animation: toast-in 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: auto;
+}
+
+.toast-success { border-left: 4px solid var(--color-low); }
+.toast-error { border-left: 4px solid var(--color-critical); }
+
+.toast-dismiss {
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.toast:hover .toast-dismiss {
+  opacity: 0.6;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes loading-sheen {

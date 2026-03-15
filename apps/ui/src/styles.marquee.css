@@ -79,6 +79,22 @@
   }
 }
 
+.marquee-panel:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+.marquee-card {
+  cursor: default;
+  transition:
+    transform 200ms ease,
+    border-color 200ms ease;
+}
+
+.marquee-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(17, 24, 39, 0.12);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .marquee-track {
     animation: none;
