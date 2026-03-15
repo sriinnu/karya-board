@@ -17,8 +17,14 @@ import {
 } from './ai.js';
 import { AI_PROVIDERS, type AIProvider, type SuggestIssuesParams } from './ai.types.js';
 import {
+  addProjectToConfig,
+  readConfigFileRaw,
+  readProjectFile,
+  removeProjectFromConfig,
   resolveProjectScanSettings,
+  updateProjectInConfig,
   updateProjectScanSettings,
+  writeConfigFileRaw,
   type ProjectScanSettings,
 } from './config-store.js';
 import { isMainModule, loadKaryaConfig } from './config.js';
@@ -192,6 +198,9 @@ export class KaryaApiServer {
     this.server = createServer((request, response) => {
       void this.handleRequest(request, response);
     });
+    this.server.timeout = 30000;
+    this.server.headersTimeout = 10000;
+    this.server.requestTimeout = 30000;
   }
 
   /**
@@ -257,7 +266,7 @@ export class KaryaApiServer {
     request: IncomingMessage,
     response: ServerResponse
   ): Promise<void> {
-    this.writeCorsHeaders(response);
+    this.writeCorsHeaders(response, request);
 
     if (request.method === 'OPTIONS') {
       response.writeHead(204);
@@ -332,6 +341,115 @@ export class KaryaApiServer {
           });
 
         this.sendJson(response, 200, { success: true, projects });
+        return;
+      }
+
+      if (request.method === 'POST' && pathname === '/api/projects') {
+        const payload = await this.readJsonBody<{
+          name?: unknown;
+          path?: unknown;
+          include?: unknown;
+          exclude?: unknown;
+        }>(request);
+        const name = typeof payload.name === 'string' ? payload.name.trim() : '';
+        const projectPath = typeof payload.path === 'string' ? payload.path.trim() : '';
+        if (!name || !projectPath) {
+          this.sendJson(response, 400, { success: false, error: 'Both "name" and "path" are required.' });
+          return;
+        }
+        const result = addProjectToConfig({
+          name,
+          path: projectPath,
+          include: Array.isArray(payload.include) ? payload.include.filter((v): v is string => typeof v === 'string') : undefined,
+          exclude: Array.isArray(payload.exclude) ? payload.exclude.filter((v): v is string => typeof v === 'string') : undefined,
+          configPath: this.configPath,
+        });
+        this.config = result.config;
+        this.mustGetScannerController().setConfig(result.config);
+        // Auto-create in DB
+        const db = this.mustGetDb();
+        const normalizedProject = result.config.projects.find((p) => p.name === name);
+        if (normalizedProject && !db.getProjectByPath(normalizedProject.path)) {
+          db.createProject(normalizedProject.name, normalizedProject.path);
+        }
+        this.sendJson(response, 201, { success: true, warning: result.warning });
+        return;
+      }
+
+      const projectIdForCrud = this.getProjectIdFromPath(pathname);
+
+      if (projectIdForCrud && request.method === 'PATCH' && !pathname.includes('/scan-settings')) {
+        const db = this.mustGetDb();
+        const project = db.getProjectById(projectIdForCrud);
+        if (!project) {
+          this.sendJson(response, 404, { success: false, error: 'Project not found' });
+          return;
+        }
+        const payload = await this.readJsonBody<{
+          name?: unknown;
+          path?: unknown;
+          include?: unknown;
+          exclude?: unknown;
+        }>(request);
+        const result = updateProjectInConfig({
+          projectPath: project.path,
+          projectName: project.name,
+          name: typeof payload.name === 'string' ? payload.name.trim() : undefined,
+          newPath: typeof payload.path === 'string' ? payload.path.trim() : undefined,
+          include: Array.isArray(payload.include) ? payload.include.filter((v): v is string => typeof v === 'string') : undefined,
+          exclude: Array.isArray(payload.exclude) ? payload.exclude.filter((v): v is string => typeof v === 'string') : undefined,
+          configPath: this.configPath,
+        });
+        this.config = result.config;
+        this.mustGetScannerController().setConfig(result.config);
+        this.sendJson(response, 200, { success: true, warning: result.warning });
+        return;
+      }
+
+      if (projectIdForCrud && request.method === 'DELETE') {
+        const db = this.mustGetDb();
+        const project = db.getProjectById(projectIdForCrud);
+        if (!project) {
+          this.sendJson(response, 404, { success: false, error: 'Project not found' });
+          return;
+        }
+        const result = removeProjectFromConfig({
+          projectPath: project.path,
+          projectName: project.name,
+          configPath: this.configPath,
+        });
+        this.config = result.config;
+        this.mustGetScannerController().setConfig(result.config);
+        this.sendJson(response, 200, { success: true, warning: result.warning });
+        return;
+      }
+
+      if (request.method === 'GET' && pathname === '/api/config') {
+        const raw = readConfigFileRaw(this.configPath);
+        this.sendJson(response, 200, { success: true, config: JSON.parse(raw) });
+        return;
+      }
+
+      if (request.method === 'PUT' && pathname === '/api/config') {
+        const payload = await this.readJsonBody<{ content?: unknown }>(request);
+        const content = typeof payload.content === 'string' ? payload.content : JSON.stringify(payload);
+        const config = writeConfigFileRaw(content, this.configPath);
+        this.config = config;
+        this.mustGetScannerController().setConfig(config);
+        this.sendJson(response, 200, { success: true, warning: 'Config saved. Restart the scanner to apply.' });
+        return;
+      }
+
+      if (request.method === 'POST' && pathname === '/api/files/read') {
+        const payload = await this.readJsonBody<{ filePath?: unknown }>(request);
+        if (typeof payload.filePath !== 'string' || !payload.filePath.trim()) {
+          this.sendJson(response, 400, { success: false, error: '"filePath" is required.' });
+          return;
+        }
+        const config = this.mustGetConfig();
+        const allowedRoots = config.projects.map((p) => p.path);
+        const content = readProjectFile(payload.filePath, allowedRoots);
+        this.sendJson(response, 200, { success: true, content });
         return;
       }
 
@@ -429,15 +547,16 @@ export class KaryaApiServer {
 
       this.sendJson(response, 404, {
         success: false,
-        error: `Route not found: ${request.method ?? 'GET'} ${pathname}`,
+        error: 'Route not found',
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.sendJson(
-        response,
-        error instanceof HttpRequestError ? error.statusCode : 500,
-        { success: false, error: message }
-      );
+      if (error instanceof HttpRequestError) {
+        this.sendJson(response, error.statusCode, { success: false, error: message });
+      } else {
+        logger.error(`Unhandled request error: ${message}`);
+        this.sendJson(response, 500, { success: false, error: 'Internal server error' });
+      }
     }
   }
 
@@ -469,10 +588,17 @@ export class KaryaApiServer {
    * @internal
    */
   private async readJsonBody<T>(request: IncomingMessage): Promise<T> {
+    const MAX_BODY_SIZE = 1 * 1024 * 1024;
     const chunks: Buffer[] = [];
+    let totalSize = 0;
 
     for await (const chunk of request) {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      totalSize += buf.length;
+      if (totalSize > MAX_BODY_SIZE) {
+        throw new HttpRequestError(413, 'Request body too large');
+      }
+      chunks.push(buf);
     }
 
     if (chunks.length === 0) {
@@ -482,9 +608,8 @@ export class KaryaApiServer {
     const raw = Buffer.concat(chunks).toString('utf-8');
     try {
       return JSON.parse(raw) as T;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new HttpRequestError(400, `Invalid JSON body: ${message}`);
+    } catch {
+      throw new HttpRequestError(400, 'Invalid JSON body');
     }
   }
 
@@ -494,11 +619,17 @@ export class KaryaApiServer {
    * @param response - HTTP response writer
    * @internal
    */
-  private writeCorsHeaders(response: ServerResponse): void {
-    response.setHeader('Access-Control-Allow-Origin', '*');
+  private writeCorsHeaders(response: ServerResponse, request?: IncomingMessage): void {
+    const uiPort = Number(process.env.KARYA_UI_PORT ?? 9631);
+    const allowedOrigin = `http://127.0.0.1:${uiPort}`;
+    const requestOrigin = request?.headers.origin;
+    const origin = requestOrigin === allowedOrigin || requestOrigin === `http://localhost:${uiPort}`
+      ? requestOrigin
+      : allowedOrigin;
+    response.setHeader('Access-Control-Allow-Origin', origin);
     response.setHeader(
       'Access-Control-Allow-Methods',
-      'GET,POST,PATCH,DELETE,OPTIONS'
+      'GET,POST,PUT,PATCH,DELETE,OPTIONS'
     );
     response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   }
@@ -529,6 +660,18 @@ export class KaryaApiServer {
    */
   private getIssueIdFromPath(pathname: string): string | null {
     const match = /^\/api\/issues\/([^/]+)$/.exec(pathname);
+    return match ? decodeURIComponent(match[1]) : null;
+  }
+
+  /**
+   * Extracts a project ID from `/api/projects/:id` paths (excluding sub-routes).
+   *
+   * @param pathname - Request path
+   * @returns Project ID when present
+   * @internal
+   */
+  private getProjectIdFromPath(pathname: string): string | null {
+    const match = /^\/api\/projects\/([^/]+)$/.exec(pathname);
     return match ? decodeURIComponent(match[1]) : null;
   }
 

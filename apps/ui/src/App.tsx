@@ -1,10 +1,10 @@
 /**
  * Main App component for the Karya UI.
- * I keep the shell layout and top-level data orchestration here.
+ * Shell layout, data orchestration, keyboard shortcuts, command palette, and focus mode.
  * @packageDocumentation
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   fetchScannerStatus,
   restartScanner,
@@ -13,8 +13,10 @@ import {
 } from './api';
 import { Header } from './components/Header';
 import { AddIssueModal } from './components/AddIssueModal';
+import { CommandPalette } from './components/CommandPalette';
 import { DashboardOverview } from './components/DashboardOverview';
 import { IssueBoard } from './components/IssueBoard';
+import { ProjectManageModal } from './components/ProjectManageModal';
 import { ProjectIntelligencePanel } from './components/ProjectIntelligencePanel';
 import { ScanSettingsModal } from './components/ScanSettingsModal';
 import { SignalMarquee } from './components/SignalMarquee';
@@ -24,7 +26,6 @@ import { useStore } from './store';
 
 /**
  * Main application component.
- * Sets up the application shell and data loading.
  * @public
  */
 function App() {
@@ -36,32 +37,42 @@ function App() {
     clearWarning,
     setError,
     ui,
+    setSelectedProject,
+    setStatusFilter,
+    setPriorityFilter,
+    toggleFocusMode,
   } = useStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showScanSettingsModal, setShowScanSettingsModal] = useState(false);
   const [showSuggestModal, setShowSuggestModal] = useState(false);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [showProjectManage, setShowProjectManage] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [scannerStatus, setScannerStatus] = useState<ScannerStatus | null>(null);
   const [isScannerMutating, setIsScannerMutating] = useState(false);
+  const [toasts, setToasts] = useState<Array<{ id: string; message: string; type: 'success' | 'error' }>>([]);
+  const toastIdRef = useRef(0);
+
+  const addToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    const id = String(++toastIdRef.current);
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3500);
+  }, []);
+
   const selectedProjectName = ui.selectedProjectId
     ? projects.find((project) => project.id === ui.selectedProjectId)?.name ?? 'Focused Project'
     : 'All Projects';
   const hasNoProjects = projects.length === 0;
   const scannerRunning = scannerStatus?.running ?? false;
+  const anyModalOpen = showAddModal || showSuggestModal || showScanSettingsModal || showCommandPalette || showProjectManage;
 
-  /**
-   * I refresh embedded scanner state alongside normal board data.
-   * @internal
-   */
   const loadScannerState = async (): Promise<void> => {
     const nextStatus = await fetchScannerStatus();
     setScannerStatus(nextStatus);
   };
 
-  /**
-   * I keep refresh behavior in one place so loading indicators stay consistent.
-   * @internal
-   */
   const handleRefresh = async (): Promise<void> => {
     setIsRefreshing(true);
     try {
@@ -71,10 +82,6 @@ function App() {
     }
   };
 
-  /**
-   * I start or restart the embedded scanner from the header control.
-   * @internal
-   */
   const handleScannerAction = async (): Promise<void> => {
     setIsScannerMutating(true);
     try {
@@ -82,33 +89,54 @@ function App() {
       const nextStatus = scannerRunning ? await restartScanner() : await startScanner();
       setScannerStatus(nextStatus);
       await refresh();
+      addToast(scannerRunning ? 'Scanner restarted' : 'Scanner started', 'success');
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to control the scanner');
+      const msg = error instanceof Error ? error.message : 'Failed to control the scanner';
+      setError(msg);
+      addToast(msg, 'error');
     } finally {
       setIsScannerMutating(false);
     }
   };
 
-  /**
-   * I load projects once at startup.
-   * @internal
-   */
+  /** Dynamic page title showing open issue count */
+  useEffect(() => {
+    const count = ui.totalCount;
+    document.title = count > 0 ? `Spanda (${count})` : 'Spanda | Karya Issue Board';
+  }, [ui.totalCount]);
+
+  /** Global keyboard shortcuts */
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowCommandPalette(true);
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === '.') {
+        e.preventDefault();
+        toggleFocusMode();
+        return;
+      }
+      if (anyModalOpen) return;
+      if (e.key === 'n' && !e.metaKey && !e.ctrlKey && !hasNoProjects) { e.preventDefault(); setShowAddModal(true); return; }
+      if (e.key === 'r' && !e.metaKey && !e.ctrlKey) { e.preventDefault(); void handleRefresh().catch(() => undefined); return; }
+      if (e.key === 'a' && !e.metaKey && !e.ctrlKey && !hasNoProjects) { e.preventDefault(); setShowSuggestModal(true); return; }
+      if (e.key === '?') { e.preventDefault(); setShowCommandPalette(true); return; }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [anyModalOpen, hasNoProjects, toggleFocusMode]);
+
   useEffect(() => {
     void loadProjects().catch(() => undefined);
   }, [loadProjects]);
 
-  /**
-   * I load embedded scanner state once so the header can expose a real control.
-   * @internal
-   */
   useEffect(() => {
     void loadScannerState().catch(() => undefined);
   }, []);
 
-  /**
-   * I reload issues when filters or pagination change.
-   * @internal
-   */
   useEffect(() => {
     void loadIssues().catch(() => undefined);
   }, [
@@ -120,6 +148,37 @@ function App() {
     ui.page,
     ui.pageSize,
   ]);
+
+  /** Breadcrumb scope trail */
+  const breadcrumb = (
+    <nav className="breadcrumb" aria-label="Current scope">
+      <button type="button" onClick={() => { setSelectedProject(null); setStatusFilter('all'); setPriorityFilter('all'); }}>
+        Portfolio
+      </button>
+      {ui.selectedProjectId && (
+        <>
+          <span className="breadcrumb-sep">/</span>
+          <span className="breadcrumb-current">{selectedProjectName}</span>
+        </>
+      )}
+      {ui.statusFilter !== 'all' && (
+        <>
+          <span className="breadcrumb-sep">/</span>
+          <span className="breadcrumb-current">
+            {ui.statusFilter === 'in_progress' ? 'In Progress' : ui.statusFilter.charAt(0).toUpperCase() + ui.statusFilter.slice(1)}
+          </span>
+        </>
+      )}
+      {ui.priorityFilter !== 'all' && (
+        <>
+          <span className="breadcrumb-sep">/</span>
+          <span className="breadcrumb-current">
+            {ui.priorityFilter.charAt(0).toUpperCase() + ui.priorityFilter.slice(1)}
+          </span>
+        </>
+      )}
+    </nav>
+  );
 
   return (
     <div className="app-container">
@@ -135,7 +194,7 @@ function App() {
               ? `Workspace warning: ${ui.warning}`
             : 'Workspace loaded'}
       </div>
-      <div className="app-shell">
+      <div className={`app-shell${ui.isFocusMode ? ' focus-mode' : ''}`}>
         <Header
           onAddIssue={() => setShowAddModal(true)}
           onSuggestIssues={() => setShowSuggestModal(true)}
@@ -161,12 +220,15 @@ function App() {
             onAddIssue={() => setShowAddModal(true)}
             onEditScanSettings={() => setShowScanSettingsModal(true)}
             onSuggestIssues={() => setShowSuggestModal(true)}
+            onManageProjects={() => setShowProjectManage(true)}
             disableAddIssue={hasNoProjects}
             disableScanSettings={hasNoProjects}
             disableSuggestIssues={hasNoProjects}
           />
 
           <section className="content-area content-stack">
+            {breadcrumb}
+
             <div id="live-tape">
               <SignalMarquee />
             </div>
@@ -211,7 +273,7 @@ function App() {
                   </div>
                 </div>
                 <p className="loading-copy">
-                  I am pulling the latest issues, project totals, and current filters into the board.
+                  Pulling the latest issues, project totals, and current filters into the board.
                 </p>
                 <div className="loading-skeleton-list" aria-hidden="true">
                   <div className="loading-skeleton loading-skeleton-wide" />
@@ -273,6 +335,36 @@ function App() {
       )}
       {showSuggestModal && (
         <SuggestIssuesModal onClose={() => setShowSuggestModal(false)} />
+      )}
+      {showProjectManage && (
+        <ProjectManageModal onClose={() => setShowProjectManage(false)} />
+      )}
+      {showCommandPalette && (
+        <CommandPalette
+          onClose={() => setShowCommandPalette(false)}
+          onAddIssue={() => setShowAddModal(true)}
+          onSuggestIssues={() => setShowSuggestModal(true)}
+          onRefresh={() => { void handleRefresh().catch(() => undefined); }}
+          onScannerAction={() => { void handleScannerAction().catch(() => undefined); }}
+          onManageProjects={() => setShowProjectManage(true)}
+        />
+      )}
+
+      {ui.isFocusMode && (
+        <button type="button" className="focus-exit-btn" onClick={toggleFocusMode}>
+          Exit Focus Mode
+          <kbd className="btn-kbd">&#8984;.</kbd>
+        </button>
+      )}
+
+      {toasts.length > 0 && (
+        <div className="toast-container" aria-live="polite">
+          {toasts.map((toast) => (
+            <div key={toast.id} className={`toast toast-${toast.type}`}>
+              {toast.message}
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

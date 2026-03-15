@@ -471,6 +471,118 @@ export async function suggestIssues(input: SuggestIssuesInput): Promise<{
 }
 
 /**
+ * Adds a new project to the workspace.
+ *
+ * @param input - Project definition
+ * @returns Mutation result with warning
+ * @public
+ */
+export async function addProject(input: {
+  name: string;
+  path: string;
+  include?: string[];
+  exclude?: string[];
+}): Promise<MutationResult> {
+  const payload = await request<MutationResponse>('/projects', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+  if (!payload.success) {
+    throw new Error(payload.error ?? 'Failed to add project');
+  }
+  return { warning: payload.warning ?? null };
+}
+
+/**
+ * Updates an existing project.
+ *
+ * @param projectId - Project ID
+ * @param input - Fields to update
+ * @returns Mutation result
+ * @public
+ */
+export async function updateProject(
+  projectId: string,
+  input: { name?: string; path?: string; include?: string[]; exclude?: string[] }
+): Promise<MutationResult> {
+  const payload = await request<MutationResponse>(`/projects/${encodeURIComponent(projectId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+  if (!payload.success) {
+    throw new Error(payload.error ?? 'Failed to update project');
+  }
+  return { warning: payload.warning ?? null };
+}
+
+/**
+ * Removes a project from the workspace.
+ *
+ * @param projectId - Project ID
+ * @returns Mutation result
+ * @public
+ */
+export async function removeProject(projectId: string): Promise<MutationResult> {
+  const payload = await request<MutationResponse>(`/projects/${encodeURIComponent(projectId)}`, {
+    method: 'DELETE',
+  });
+  if (!payload.success) {
+    throw new Error(payload.error ?? 'Failed to remove project');
+  }
+  return { warning: payload.warning ?? null };
+}
+
+/**
+ * Reads the raw karya.config.json.
+ *
+ * @returns Parsed config object
+ * @public
+ */
+export async function fetchConfig(): Promise<Record<string, unknown>> {
+  const payload = await request<{ success: boolean; config?: Record<string, unknown>; error?: string }>('/config');
+  if (!payload.success || !payload.config) {
+    throw new Error(payload.error ?? 'Failed to load config');
+  }
+  return payload.config;
+}
+
+/**
+ * Saves updated config content.
+ *
+ * @param config - Config object to save
+ * @returns Mutation result
+ * @public
+ */
+export async function saveConfig(config: Record<string, unknown>): Promise<MutationResult> {
+  const payload = await request<MutationResponse>('/config', {
+    method: 'PUT',
+    body: JSON.stringify(config),
+  });
+  if (!payload.success) {
+    throw new Error(payload.error ?? 'Failed to save config');
+  }
+  return { warning: payload.warning ?? null };
+}
+
+/**
+ * Reads a file from a project directory.
+ *
+ * @param filePath - Absolute file path
+ * @returns File content as string
+ * @public
+ */
+export async function readFile(filePath: string): Promise<string> {
+  const payload = await request<{ success: boolean; content?: string; error?: string }>('/files/read', {
+    method: 'POST',
+    body: JSON.stringify({ filePath }),
+  });
+  if (!payload.success || payload.content === undefined) {
+    throw new Error(payload.error ?? 'Failed to read file');
+  }
+  return payload.content;
+}
+
+/**
  * Performs a JSON HTTP request against the local API.
  *
  * @param path - API path beginning with `/`

@@ -1,45 +1,55 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
   <defs>
-    <linearGradient id="spanda-shell" x1="18" y1="10" x2="112" y2="118">
+    <linearGradient id="sp-shell" x1="16" y1="8" x2="114" y2="120">
       <stop offset="0%" stop-color="#0A84FF"/>
-      <stop offset="100%" stop-color="#6BD7FF"/>
+      <stop offset="100%" stop-color="#5AC8FA"/>
     </linearGradient>
-    <linearGradient id="spanda-core" x1="30" y1="22" x2="96" y2="106">
+    <linearGradient id="sp-core" x1="28" y1="20" x2="100" y2="108">
       <stop offset="0%" stop-color="#FFFFFF"/>
-      <stop offset="100%" stop-color="#EAF4FF"/>
+      <stop offset="100%" stop-color="#EDF5FF"/>
     </linearGradient>
-    <linearGradient id="spanda-pulse" x1="34" y1="64" x2="94" y2="64">
+    <linearGradient id="sp-pulse" x1="30" y1="64" x2="98" y2="64">
       <stop offset="0%" stop-color="#0A84FF"/>
-      <stop offset="100%" stop-color="#36C7FF"/>
+      <stop offset="100%" stop-color="#34AADC"/>
     </linearGradient>
-    <radialGradient id="spanda-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(64 64) rotate(90) scale(50)">
-      <stop offset="0%" stop-color="#A6EAFF" stop-opacity="0.48"/>
+    <radialGradient id="sp-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(64 64) scale(50)">
+      <stop offset="0%" stop-color="#A6EAFF" stop-opacity="0.44"/>
       <stop offset="100%" stop-color="#A6EAFF" stop-opacity="0"/>
     </radialGradient>
   </defs>
 
-  <!-- I use a slow halo pulse so the mark feels alive without becoming noisy. -->
-  <circle cx="64" cy="64" r="46" fill="url(#spanda-glow)" opacity="0.2">
-    <animate attributeName="r" values="44;50;44" dur="3.8s" repeatCount="indefinite"/>
-    <animate attributeName="opacity" values="0.16;0.32;0.16" dur="3.8s" repeatCount="indefinite"/>
+  <!-- Breathing halo -->
+  <circle cx="64" cy="64" r="46" fill="url(#sp-glow)" opacity="0.2">
+    <animate attributeName="r" values="44;51;44" dur="3.6s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.14;0.3;0.14" dur="3.6s" repeatCount="indefinite"/>
   </circle>
 
+  <!-- Breathing icon body -->
   <g transform-origin="64px 64px">
-    <animateTransform attributeName="transform" type="scale" values="0.985;1;0.985" dur="3.8s" repeatCount="indefinite"/>
-    <rect x="10" y="10" width="108" height="108" rx="30" fill="url(#spanda-shell)"/>
-    <rect x="14" y="14" width="100" height="100" rx="26" stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="1.5"/>
-    <rect x="26" y="22" width="76" height="84" rx="24" fill="url(#spanda-core)"/>
-    <circle cx="64" cy="34" r="7" fill="#FFFFFF" fill-opacity="0.38"/>
-    <rect x="46" y="42" width="36" height="5" rx="2.5" fill="#D6E8FF"/>
+    <animateTransform attributeName="transform" type="scale" values="0.986;1;0.986" dur="3.6s" repeatCount="indefinite"/>
+
+    <rect x="10" y="10" width="108" height="108" rx="30" fill="url(#sp-shell)"/>
+    <rect x="13" y="13" width="102" height="102" rx="27" stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="1.2"/>
+    <rect x="24" y="20" width="80" height="88" rx="22" fill="url(#sp-core)"/>
+
+    <rect x="38" y="33" width="34" height="3.5" rx="1.75" fill="#0A84FF" fill-opacity="0.1"/>
+    <rect x="38" y="41" width="22" height="3.5" rx="1.75" fill="#0A84FF" fill-opacity="0.07"/>
+
     <path
-      d="M34 68H45L52 55L63 80L73 58H94"
-      stroke="url(#spanda-pulse)"
-      stroke-width="7"
+      d="M30 68 L42 68 L50 54 L62 82 L74 46 L86 68 L98 68"
+      stroke="url(#sp-pulse)"
+      stroke-width="6"
       stroke-linecap="round"
       stroke-linejoin="round"
     />
-    <rect x="46" y="88" width="28" height="5" rx="2.5" fill="#D6E8FF"/>
-    <circle cx="39" cy="44.5" r="4" fill="#0A84FF" fill-opacity="0.14"/>
-    <circle cx="39" cy="90.5" r="4" fill="#0A84FF" fill-opacity="0.14"/>
+
+    <!-- Warm accent with breathing glow -->
+    <circle cx="74" cy="46" r="8" fill="#FF9F0A" fill-opacity="0.16">
+      <animate attributeName="r" values="7;10;7" dur="3.6s" repeatCount="indefinite"/>
+      <animate attributeName="fill-opacity" values="0.12;0.22;0.12" dur="3.6s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="74" cy="46" r="4.5" fill="#FF9F0A"/>
+
+    <rect x="38" y="92" width="26" height="3.5" rx="1.75" fill="#0A84FF" fill-opacity="0.08"/>
   </g>
 </svg>

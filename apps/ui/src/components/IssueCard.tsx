@@ -5,7 +5,7 @@
  */
 
 import { useState } from 'react';
-import type { Issue, IssueStatus } from '../store';
+import type { Issue, IssuePriority, IssueStatus } from '../store';
 import { useStore } from '../store';
 
 /**
@@ -28,14 +28,30 @@ const STATUS_OPTIONS: Array<{ label: string; value: IssueStatus }> = [
 ];
 
 /**
+ * Priority options for inline priority switching.
+ * @internal
+ */
+const PRIORITY_OPTIONS: Array<{ value: IssuePriority }> = [
+  { value: 'critical' },
+  { value: 'high' },
+  { value: 'medium' },
+  { value: 'low' },
+];
+
+/**
  * Card component displaying a single issue with details and actions.
  * @param props - Component props
  * @public
  */
 export function IssueCard({ issue }: IssueCardProps) {
-  const { updateIssue, deleteIssue } = useStore();
+  const { updateIssue, deleteIssue, toggleIssueSelection, ui } = useStore();
+  const isSelected = ui.selectedIssueIds.includes(issue.id);
   const isDone = issue.status === 'done';
   const [isPending, setIsPending] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const ageDays = Math.floor((Date.now() - issue.updatedAt) / 86400000);
+  const ageTag = ageDays >= 14 ? 'ancient' : ageDays >= 7 ? 'stale' : 'fresh';
+  const isStale = issue.status !== 'done' && ageDays >= 14;
 
   const handleStatusChange = async (newStatus: IssueStatus) => {
     setIsPending(true);
@@ -65,7 +81,13 @@ export function IssueCard({ issue }: IssueCardProps) {
 
   return (
     <article
-      className={`issue-card priority-${issue.priority} ${isDone ? 'done' : ''} ${isPending ? 'pending' : ''}`}
+      className={`issue-card priority-${issue.priority} ${isDone ? 'done' : ''} ${isPending ? 'pending' : ''} ${isSelected ? 'is-selected' : ''}`}
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey) {
+          e.preventDefault();
+          toggleIssueSelection(issue.id);
+        }
+      }}
     >
       <div className="issue-card-header">
         <div className="issue-card-signal">
@@ -74,7 +96,7 @@ export function IssueCard({ issue }: IssueCardProps) {
               <span className={`priority-dot priority-${issue.priority}`} aria-hidden="true" />
               <span className="issue-card-kicker">{issue.projectName ?? 'Manual Issue'}</span>
               <span className="issue-card-divider" aria-hidden="true" />
-              <span className="issue-timestamp">{formatRelativeTime(issue.updatedAt)}</span>
+              <span className="issue-timestamp" data-age={ageTag}>{formatRelativeTime(issue.updatedAt)}</span>
             </div>
             <h3 className="issue-card-title">{issue.title}</h3>
           </div>
@@ -114,18 +136,28 @@ export function IssueCard({ issue }: IssueCardProps) {
 
       <div className="issue-card-meta">
         <span className={`badge badge-${issue.status === 'in_progress' ? 'progress' : issue.status}`}>
-          {issue.status === 'in_progress' ? 'In Progress' : issue.status}
+          {issue.status === 'in_progress' ? 'In Progress' : issue.status === 'open' ? 'Open' : 'Done'}
         </span>
-        <span className={`badge badge-${issue.priority}`}>{issue.priority}</span>
-        {issue.sourceFile && <span className="badge">Source File</span>}
+        <span className={`badge badge-${issue.priority}`}>
+          {issue.priority.charAt(0).toUpperCase() + issue.priority.slice(1)}
+        </span>
+        {isStale && <span className="badge badge-critical">Stale</span>}
+        {issue.sourceFile && (
+          <button
+            type="button"
+            className="badge badge-source"
+            title={copied ? 'Copied!' : `Click to copy: ${issue.sourceFile}`}
+            onClick={() => {
+              navigator.clipboard.writeText(issue.sourceFile!).then(
+                () => { setCopied(true); setTimeout(() => setCopied(false), 1500); },
+                () => { /* clipboard not available */ }
+              );
+            }}
+          >
+            {copied ? 'Copied!' : issue.sourceFile.split('/').pop()}
+          </button>
+        )}
       </div>
-
-      {issue.sourceFile && (
-        <div className="issue-source-row">
-          <span className="issue-source-label">Source</span>
-          <div className="issue-source truncate">{issue.sourceFile}</div>
-        </div>
-      )}
 
       <div className="issue-card-footer">
         <div className="status-switch">
@@ -142,6 +174,26 @@ export function IssueCard({ issue }: IssueCardProps) {
               disabled={isPending || issue.status === option.value}
             >
               {option.label}
+            </button>
+          ))}
+        </div>
+        <div className="priority-switch" role="group" aria-label="Change priority">
+          {PRIORITY_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={`priority-switch-btn ${issue.priority === option.value ? 'active' : ''}`}
+              aria-pressed={issue.priority === option.value}
+              aria-label={`Set priority to ${option.value}`}
+              disabled={isPending || issue.priority === option.value}
+              onClick={() => {
+                setIsPending(true);
+                void updateIssue(issue.id, { priority: option.value })
+                  .catch(() => undefined)
+                  .finally(() => setIsPending(false));
+              }}
+            >
+              <span className={`priority-dot priority-${option.value}`} aria-hidden="true" />
             </button>
           ))}
         </div>

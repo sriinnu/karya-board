@@ -3,13 +3,41 @@
  * @packageDocumentation
  */
 
+/* ── Inter — primary UI font ── */
+
 @font-face {
-  font-family: 'Pacifico';
+  font-family: 'Inter';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('./assets/fonts/pacifico-400.ttf') format('truetype');
+  src: url('./assets/fonts/inter-400.ttf') format('truetype');
 }
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./assets/fonts/inter-500.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./assets/fonts/inter-600.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./assets/fonts/inter-700.ttf') format('truetype');
+}
+
+/* ── Manrope — fallback sans ── */
 
 @font-face {
   font-family: 'Manrope';
@@ -35,6 +63,44 @@
   src: url('./assets/fonts/manrope-700.ttf') format('truetype');
 }
 
+/* ── Pacifico — brand script ── */
+
+@font-face {
+  font-family: 'Pacifico';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./assets/fonts/pacifico-400.ttf') format('truetype');
+}
+
+/* ── Caveat — handwritten, warm and expressive ── */
+
+@font-face {
+  font-family: 'Caveat';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('./assets/fonts/caveat-variable.ttf') format('truetype');
+}
+
+/* ── Kalam — handwritten, organic and natural ── */
+
+@font-face {
+  font-family: 'Kalam';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./assets/fonts/kalam-400.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Kalam';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./assets/fonts/kalam-700.ttf') format('truetype');
+}
+
 :root {
   color-scheme: light;
   --font-script:
@@ -43,7 +109,18 @@
     'Apple Chancery',
     'Segoe Script',
     cursive;
+  --font-hand:
+    'Caveat',
+    'Kalam',
+    'Segoe Print',
+    cursive;
+  --font-hand-alt:
+    'Kalam',
+    'Caveat',
+    'Segoe Print',
+    cursive;
   --font-sans:
+    'Inter',
     'Manrope',
     'SF Pro Display',
     'SF Pro Text',
@@ -132,6 +209,9 @@ html {
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-variant-numeric: tabular-nums;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
