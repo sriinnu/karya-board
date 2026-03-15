@@ -1,3 +1,4 @@
+import fs from 'fs';
 import path from 'path';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
@@ -6,8 +7,27 @@ const devPort = Number(process.env.VITE_DEV_PORT ?? 9631);
 const apiPort = Number(process.env.VITE_KARYA_API_PORT ?? 9630);
 
 /**
+ * Resolves local HTTPS certs if present.
+ * Looks for mkcert-generated certs in the project certs/ directory.
+ */
+function resolveHttpsOptions(): { cert: Buffer; key: Buffer } | false {
+  const certPath = process.env.KARYA_SSL_CERT
+    ?? path.resolve(__dirname, '../../certs/localhost+2.pem');
+  const keyPath = process.env.KARYA_SSL_KEY
+    ?? path.resolve(__dirname, '../../certs/localhost+2-key.pem');
+
+  if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+    return { cert: fs.readFileSync(certPath), key: fs.readFileSync(keyPath) };
+  }
+  return false;
+}
+
+const httpsOptions = resolveHttpsOptions();
+const protocol = httpsOptions ? 'https' : 'http';
+
+/**
  * Vite configuration for the Karya UI application.
- * Configures React plugin, aliases for workspace packages, and build settings.
+ * Auto-detects local certs and enables HTTPS when available.
  */
 export default defineConfig({
   plugins: [react()],
@@ -22,10 +42,12 @@ export default defineConfig({
     port: devPort,
     strictPort: true,
     open: true,
+    ...(httpsOptions ? { https: httpsOptions } : {}),
     proxy: {
       '/api': {
-        target: `http://127.0.0.1:${apiPort}`,
+        target: `${protocol}://127.0.0.1:${apiPort}`,
         changeOrigin: true,
+        secure: false,
       },
     },
   },

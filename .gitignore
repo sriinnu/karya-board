@@ -35,6 +35,9 @@ pnpm-debug.log*
 .env.local
 .env.*.local
 
+# Local HTTPS certs
+certs/
+
 # Test coverage
 coverage/
 .nyc_output/
