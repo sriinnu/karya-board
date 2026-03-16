@@ -1,0 +1,129 @@
+/**
+ * Clean Animations - Subtle, non-intrusive interactions
+ * @packageDocumentation
+ */
+
+/* ── Card Entrance Animation ── */
+
+.issue-grid > .issue-card {
+  animation: card-enter 300ms ease backwards;
+}
+
+.issue-grid > .issue-card:nth-child(1) { animation-delay: 0ms; }
+.issue-grid > .issue-card:nth-child(2) { animation-delay: 30ms; }
+.issue-grid > .issue-card:nth-child(3) { animation-delay: 60ms; }
+.issue-grid > .issue-card:nth-child(4) { animation-delay: 90ms; }
+.issue-grid > .issue-card:nth-child(5) { animation-delay: 120ms; }
+.issue-grid > .issue-card:nth-child(6) { animation-delay: 150ms; }
+.issue-grid > .issue-card:nth-child(n+7) { animation-delay: 180ms; }
+
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Lane Animation ── */
+
+.lane {
+  animation: lane-enter 350ms ease backwards;
+}
+
+@keyframes lane-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Button Press Effect ── */
+
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* ── Status Switch Press ── */
+
+.status-switch-button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* ── Priority Switch Hover ── */
+
+.priority-switch-btn:hover:not(:disabled) {
+  transform: scale(1.08);
+}
+
+/* ── Loading Shimmer ── */
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.loading-skeleton {
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.dark .loading-skeleton {
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.04) 20%,
+    rgba(255, 255, 255, 0.08) 38%,
+    rgba(255, 255, 255, 0.04) 56%
+  );
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) .loading-skeleton {
+    background: linear-gradient(
+      100deg,
+      rgba(255, 255, 255, 0.04) 20%,
+      rgba(255, 255, 255, 0.08) 38%,
+      rgba(255, 255, 255, 0.04) 56%
+    );
+  }
+}
+
+/* ── Toast Animation ── */
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.toast {
+  animation: toast-in 200ms ease;
+}
+
+/* ── Reduced Motion Support ── */
+
+@media (prefers-reduced-motion: reduce) {
+  .issue-card,
+  .lane,
+  .btn,
+  .badge,
+  .status-switch-button,
+  .priority-switch-btn,
+  .toast {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}

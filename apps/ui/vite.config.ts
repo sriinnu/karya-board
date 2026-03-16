@@ -23,11 +23,11 @@ function resolveHttpsOptions(): { cert: Buffer; key: Buffer } | false {
 }
 
 const httpsOptions = resolveHttpsOptions();
-const protocol = httpsOptions ? 'https' : 'http';
 
 /**
  * Vite configuration for the Karya UI application.
  * Auto-detects local certs and enables HTTPS when available.
+ * Note: API proxy always uses HTTP since the Karya API server runs on HTTP.
  */
 export default defineConfig({
   plugins: [react()],
@@ -45,7 +45,7 @@ export default defineConfig({
     ...(httpsOptions ? { https: httpsOptions } : {}),
     proxy: {
       '/api': {
-        target: `${protocol}://127.0.0.1:${apiPort}`,
+        target: `http://127.0.0.1:${apiPort}`,
         changeOrigin: true,
         secure: false,
       },

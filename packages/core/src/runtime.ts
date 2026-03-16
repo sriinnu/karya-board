@@ -1,6 +1,7 @@
 /**
  * Runtime entrypoint for the Karya scanner service.
  * I load config, start scanning, and keep BOARD.md synchronized with database changes.
+ * Also wires up the EventBus and AgentRegistry for event-driven operations.
  * @packageDocumentation
  */
 
@@ -12,7 +13,11 @@ import {
   createDatabase,
   createLogger,
   createScanner,
+  createEventBus,
+  createAgentRegistry,
   type KaryaConfig,
+  type EventBus,
+  type AgentRegistry,
 } from './index.js';
 
 /**
@@ -20,6 +25,25 @@ import {
  * @internal
  */
 const logger = createLogger('runtime');
+
+/**
+ * Runtime context containing all initialized services.
+ * @public
+ */
+export interface RuntimeContext {
+  /** Database instance */
+  db: Awaited<ReturnType<typeof createDatabase>>;
+  /** EventBus instance */
+  eventBus: EventBus;
+  /** Agent Registry instance */
+  agentRegistry: AgentRegistry;
+  /** Scanner instance */
+  scanner: ReturnType<typeof createScanner>;
+  /** Board Generator instance */
+  boardGenerator: ReturnType<typeof createBoardGenerator>;
+  /** Configuration */
+  config: KaryaConfig;
+}
 
 /**
  * Loads Karya config from disk and normalizes relative paths.
@@ -66,32 +90,42 @@ function loadConfig(configPath?: string): KaryaConfig {
  * @public
  */
 export async function runScanner(configPath?: string): Promise<void> {
-  const config = loadConfig(configPath);
-  const db = await createDatabase(config);
-  const boardGenerator = createBoardGenerator({ db, config });
-  const scanner = createScanner({ db, config });
+  const context = await initializeRuntime(configPath);
 
-  scanner.onScanEvent((event) => {
+  // Subscribe to events for board regeneration
+  context.scanner.onScanEvent((event) => {
     if (event.type === 'db-updated' || event.type === 'file-change') {
-      boardGenerator.scheduleRegenerate();
+      context.boardGenerator.scheduleRegenerate();
     }
   });
 
-  await scanner.start();
+  // Also subscribe to database events via EventBus
+  context.eventBus.subscribe('db:*', async () => {
+    context.boardGenerator.scheduleRegenerate();
+  });
 
-  const initialBoard = await boardGenerator.regenerate();
+  await context.scanner.start();
+
+  const initialBoard = await context.boardGenerator.regenerate();
   if (!initialBoard.success) {
     throw initialBoard.error ?? new Error('Failed to generate BOARD.md');
   }
 
   logger.info(
-    `Scanner started. Watching ${config.projects.length} project(s). BOARD: ${initialBoard.filePath}`
+    `Scanner started. Watching ${context.config.projects.length} project(s). BOARD: ${initialBoard.filePath}`
+  );
+  logger.info(
+    `EventBus active with ${context.eventBus.subscriptionCount} subscriptions, ` +
+    `${context.agentRegistry.agentCount} agents spawned`
   );
 
   const shutdown = async (): Promise<void> => {
-    await scanner.stop();
-    await boardGenerator.dispose();
-    db.close();
+    logger.info('Shutting down...');
+    await context.scanner.stop();
+    await context.agentRegistry.dispose();
+    await context.boardGenerator.dispose();
+    context.db.close();
+    logger.info('Shutdown complete');
   };
 
   process.once('SIGINT', () => {
@@ -100,6 +134,49 @@ export async function runScanner(configPath?: string): Promise<void> {
   process.once('SIGTERM', () => {
     void shutdown().finally(() => process.exit(0));
   });
+}
+
+/**
+ * Initializes the runtime with all services wired up.
+ *
+ * @param configPath - Optional path to `karya.config.json`
+ * @returns Runtime context with all initialized services
+ * @public
+ */
+export async function initializeRuntime(configPath?: string): Promise<RuntimeContext> {
+  const config = loadConfig(configPath);
+
+  // Initialize database
+  const db = await createDatabase(config);
+
+  // Initialize EventBus
+  const eventBus = createEventBus({
+    maxHistorySize: 100,
+    defaultHandlerTimeout: 30000,
+    catchHandlerErrors: true,
+  });
+
+  // Connect EventBus to Database
+  db.setEventBus(eventBus);
+
+  // Initialize Agent Registry
+  const agentRegistry = createAgentRegistry(db, eventBus);
+  await agentRegistry.initialize();
+
+  // Initialize Board Generator
+  const boardGenerator = createBoardGenerator({ db, config });
+
+  // Initialize Scanner
+  const scanner = createScanner({ db, config });
+
+  return {
+    db,
+    eventBus,
+    agentRegistry,
+    scanner,
+    boardGenerator,
+    config,
+  };
 }
 
 /**

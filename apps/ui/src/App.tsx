@@ -15,10 +15,12 @@ import { Header } from './components/Header';
 import { AddIssueModal } from './components/AddIssueModal';
 import { CommandPalette } from './components/CommandPalette';
 import { DashboardOverview } from './components/DashboardOverview';
+import { Footer } from './components/Footer';
 import { IssueBoard } from './components/IssueBoard';
 import { ProjectManageModal } from './components/ProjectManageModal';
 import { ProjectIntelligencePanel } from './components/ProjectIntelligencePanel';
 import { ScanSettingsModal } from './components/ScanSettingsModal';
+import { ScrollProgress } from './components/ScrollProgress';
 import { SignalMarquee } from './components/SignalMarquee';
 import { SuggestIssuesModal } from './components/SuggestIssuesModal';
 import { WorkspaceSidebar } from './components/WorkspaceSidebar';
@@ -182,6 +184,7 @@ function App() {
 
   return (
     <div className="app-container">
+      <ScrollProgress />
       <a href="#workspace-content" className="skip-link">
         Skip to board content
       </a>
@@ -326,6 +329,8 @@ function App() {
           </section>
         </main>
       </div>
+
+      <Footer />
 
       {showAddModal && (
         <AddIssueModal onClose={() => setShowAddModal(false)} />

@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <linearGradient id="sp-shell" x1="16" y1="8" x2="114" y2="120">
+      <stop offset="0%" stop-color="#0A84FF"/>
+      <stop offset="100%" stop-color="#5AC8FA"/>
+    </linearGradient>
+    <linearGradient id="sp-core" x1="28" y1="20" x2="100" y2="108">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#EDF5FF"/>
+    </linearGradient>
+    <radialGradient id="sp-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#A6EAFF" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#A6EAFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="live-pulse" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0A84FF"/>
+      <stop offset="50%" stop-color="#34AADC"/>
+      <stop offset="100%" stop-color="#30D158"/>
+    </linearGradient>
+    <filter id="live-blur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+    </filter>
+    <clipPath id="live-clip">
+      <rect x="0" y="0" width="128" height="128" rx="24"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background glow -->
+  <circle cx="64" cy="64" r="46" fill="url(#sp-glow)" opacity="0.3">
+    <animate attributeName="r" values="42;50;42" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.2;0.4;0.2" dur="3s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Shell rounded rect -->
+  <rect x="16" y="16" width="96" height="96" rx="24" fill="url(#sp-shell)"/>
+
+  <!-- Inner core -->
+  <rect x="28" y="28" width="72" height="72" rx="16" fill="url(#sp-core)"/>
+
+  <!-- Live pulse line with animated heartbeat effect -->
+  <path
+    d="M30 64 L40 64 L44 64 L48 52 L52 76 L56 60 L60 68 L64 64 L68 64 L72 56 L76 72 L80 64 L98 64"
+    stroke="url(#live-pulse)"
+    stroke-width="4"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    fill="none"
+    filter="url(#live-blur)"
+  >
+    <animate
+      attributeName="stroke-dasharray"
+      values="0 200;200 200"
+      dur="1.5s"
+      repeatCount="indefinite"
+    />
+    <animate
+      attributeName="opacity"
+      values="0.6;1;0.6"
+      dur="1.5s"
+      repeatCount="indefinite"
+    />
+  </path>
+
+  <!-- Main pulse line (sharp) -->
+  <path
+    d="M30 64 L40 64 L44 64 L48 52 L52 76 L56 60 L60 68 L64 64 L68 64 L72 56 L76 72 L80 64 L98 64"
+    stroke="url(#live-pulse)"
+    stroke-width="2.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    fill="none"
+  >
+    <animate
+      attributeName="stroke-dasharray"
+      values="0 200;200 200"
+      dur="1.5s"
+      repeatCount="indefinite"
+    />
+  </path>
+
+  <!-- Live badge -->
+  <g>
+    <circle cx="100" cy="28" r="12" fill="#30D158"/>
+    <circle cx="100" cy="28" r="8" fill="#30D158">
+      <animate attributeName="r" values="6;10;6" dur="1s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="100" cy="28" r="4" fill="#fff"/>
+  </g>
+</svg>

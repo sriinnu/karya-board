@@ -26,6 +26,8 @@ import {
   createWriteQueue,
   type Result,
 } from './lock.js';
+import type { EventBus } from '../events/index.js';
+import type { IssuePayload } from '../events/types.js';
 
 /**
  * SQL statements for database initialization and migrations.
@@ -124,6 +126,9 @@ export class Database {
   /** Path to the database file */
   public readonly dbPath: string;
 
+  /** Optional EventBus for emitting database events */
+  private eventBus: EventBus | null = null;
+
   /**
    * Creates a new Database instance with the specified file path.
    * Initializes SQLite with WAL mode for better concurrent read performance.
@@ -207,13 +212,44 @@ export class Database {
     }
   }
 
+  // ==================== EventBus Integration ====================
+
+  /**
+   * Sets the EventBus for emitting database events.
+   *
+   * @param eventBus - EventBus instance to use for event emission
+   */
+  public setEventBus(eventBus: EventBus): void {
+    this.eventBus = eventBus;
+  }
+
+  /**
+   * Emits a database event if EventBus is configured.
+   * @internal
+   */
+  private async emitDbEvent(
+    type: 'db:issue:created' | 'db:issue:updated' | 'db:issue:deleted',
+    payload: { issue?: IssuePayload; issueId?: string; projectId: string }
+  ): Promise<void> {
+    if (!this.eventBus) return;
+
+    try {
+      await this.eventBus.publish({
+        type,
+        ...payload,
+      } as Parameters<typeof this.eventBus.publish>[0]);
+    } catch (error) {
+      logger.warn('Failed to emit database event:', error);
+    }
+  }
+
   // ==================== Project Operations ====================
 
   /**
    * Creates a new project in the database.
    *
    * @param name - Display name of the project
-   * @param path - File system path to the project
+   * @param projectPath - File system path to the project
    * @returns Result containing the created project or error
    */
   public createProject(
@@ -230,9 +266,21 @@ export class Database {
         )
         .run(id, name, projectPath, createdAt);
 
+      const project = { id, name, path: projectPath, createdAt };
+
+      // Emit project created event
+      if (this.eventBus) {
+        void this.eventBus.publish({
+          type: 'db:project:created',
+          projectId: id,
+          name,
+          path: projectPath,
+        } as Parameters<typeof this.eventBus.publish>[0]);
+      }
+
       return {
         success: true,
-        data: { id, name, path: projectPath, createdAt },
+        data: project,
       };
     } catch (error) {
       return {
@@ -289,6 +337,15 @@ export class Database {
   public deleteProject(id: string): Result<void> {
     try {
       this.db.prepare('DELETE FROM projects WHERE id = ?').run(id);
+
+      // Emit project deleted event
+      if (this.eventBus) {
+        void this.eventBus.publish({
+          type: 'db:project:deleted',
+          projectId: id,
+        } as Parameters<typeof this.eventBus.publish>[0]);
+      }
+
       return { success: true, data: undefined };
     } catch (error) {
       return {
@@ -362,6 +419,36 @@ export class Database {
   }
 
   /**
+   * Creates a new issue and emits an event.
+   *
+   * @param issue - Issue data to create
+   * @returns Result containing the created issue or error
+   */
+  public async createIssueWithEvent(issue: {
+    projectId: string;
+    title: string;
+    description?: string;
+    status?: IssueStatus;
+    priority?: IssuePriority;
+    source?: IssueSource;
+    sourceFile?: string;
+  }): Promise<Result<Issue>> {
+    const result = this.createIssue(issue);
+    if (result.success && this.eventBus) {
+      const issuePayload: IssuePayload = {
+        id: result.data.id,
+        projectId: result.data.projectId,
+        title: result.data.title,
+        status: result.data.status,
+        priority: result.data.priority,
+        source: result.data.source,
+      };
+      await this.emitDbEvent('db:issue:created', { issue: issuePayload, projectId: result.data.projectId });
+    }
+    return result;
+  }
+
+  /**
    * Updates an existing issue.
    *
    * @param id - Issue ID to update
@@ -412,6 +499,32 @@ export class Database {
         error: error instanceof Error ? error : new Error(String(error)),
       };
     }
+  }
+
+  /**
+   * Updates an issue and emits an event.
+   *
+   * @param id - Issue ID to update
+   * @param updates - Fields to update
+   * @returns Result containing the updated issue or error
+   */
+  public async updateIssueWithEvent(
+    id: string,
+    updates: Partial<Pick<Issue, 'title' | 'description' | 'status' | 'priority'>>
+  ): Promise<Result<Issue>> {
+    const result = this.updateIssue(id, updates);
+    if (result.success && this.eventBus) {
+      const issuePayload: IssuePayload = {
+        id: result.data.id,
+        projectId: result.data.projectId,
+        title: result.data.title,
+        status: result.data.status,
+        priority: result.data.priority,
+        source: result.data.source,
+      };
+      await this.emitDbEvent('db:issue:updated', { issue: issuePayload, projectId: result.data.projectId });
+    }
+    return result;
   }
 
   /**
@@ -467,6 +580,21 @@ export class Database {
         error: error instanceof Error ? error : new Error(String(error)),
       };
     }
+  }
+
+  /**
+   * Deletes an issue and emits an event.
+   *
+   * @param id - Issue ID to delete
+   * @param projectId - Project ID the issue belongs to (required for event)
+   * @returns Result indicating success or failure
+   */
+  public async deleteIssueWithEvent(id: string, projectId: string): Promise<Result<void>> {
+    const result = this.deleteIssue(id);
+    if (result.success && this.eventBus) {
+      await this.emitDbEvent('db:issue:deleted', { issueId: id, projectId });
+    }
+    return result;
   }
 
   /**
@@ -569,6 +697,16 @@ export class Database {
           .prepare('UPDATE artifacts SET content = ?, last_scanned = ? WHERE id = ?')
           .run(artifact.content, now, existing.id);
 
+        // Emit artifact upserted event
+        if (this.eventBus) {
+          void this.eventBus.publish({
+            type: 'db:artifact:upserted',
+            artifactId: existing.id,
+            projectId: artifact.projectId,
+            filePath: artifact.filePath,
+          } as Parameters<typeof this.eventBus.publish>[0]);
+        }
+
         return {
           success: true,
           data: {
@@ -587,6 +725,16 @@ export class Database {
           'INSERT INTO artifacts (id, project_id, file_path, content, last_scanned) VALUES (?, ?, ?, ?, ?)'
         )
         .run(id, artifact.projectId, artifact.filePath, artifact.content, now);
+
+      // Emit artifact upserted event
+      if (this.eventBus) {
+        void this.eventBus.publish({
+          type: 'db:artifact:upserted',
+          artifactId: id,
+          projectId: artifact.projectId,
+          filePath: artifact.filePath,
+        } as Parameters<typeof this.eventBus.publish>[0]);
+      }
 
       return {
         success: true,
@@ -700,11 +848,11 @@ export class Database {
 /**
  * Creates a new database instance and initializes it.
  *
- * @param configPath - Path to the configuration file
+ * @param config - Karya configuration
  * @returns Initialized database instance
  * @example
  * ```typescript
- * const db = await createDatabase('./karya.config.json');
+ * const db = await createDatabase(config);
  * ```
  */
 export async function createDatabase(config: KaryaConfig): Promise<Database> {

@@ -1,6 +1,7 @@
 /**
  * MCP Server for Karya.
- * Exposes add_issue, list_issues, update_issue, and delete_issue tools.
+ * Exposes add_issue, list_issues, update_issue, delete_issue tools,
+ * plus subscribe_events, invoke_agent, and get_agent_info tools.
  * @packageDocumentation
  */
 
@@ -10,8 +11,20 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import type { BoardGenerator, Database, KaryaConfig } from '@karya/core';
-import { createBoardGenerator, createDatabase, createLogger } from '@karya/core';
+import type {
+  BoardGenerator,
+  Database,
+  KaryaConfig,
+  EventBus,
+  AgentRegistry,
+} from '@karya/core';
+import {
+  createBoardGenerator,
+  createDatabase,
+  createEventBus,
+  createAgentRegistry,
+  createLogger,
+} from '@karya/core';
 import { AiIssueSuggester } from './ai.js';
 import type { SuggestIssuesParams } from './ai.types.js';
 import { isMainModule, loadKaryaConfig } from './config.js';
@@ -32,6 +45,25 @@ import {
   createSuggestIssuesTool,
   SUGGEST_ISSUES_INPUT_SCHEMA,
 } from './tools/suggest-issues.js';
+import {
+  createSubscribeEventsTool,
+  createUnsubscribeEventsTool,
+  createListSubscriptionsTool,
+  clearAllSubscriptions,
+  type SubscribeEventsParams,
+  type UnsubscribeEventsParams,
+  SUBSCRIBE_EVENTS_INPUT_SCHEMA,
+  UNSUBSCRIBE_EVENTS_INPUT_SCHEMA,
+  LIST_SUBSCRIPTIONS_INPUT_SCHEMA,
+} from './tools/subscribe-events.js';
+import {
+  createInvokeAgentTool,
+  createGetAgentInfoTool,
+  type InvokeAgentParams,
+  type GetAgentInfoParams,
+  INVOKE_AGENT_INPUT_SCHEMA,
+  GET_AGENT_INFO_INPUT_SCHEMA,
+} from './tools/invoke-agent.js';
 
 /**
  * MCP Server configuration options.
@@ -73,12 +105,23 @@ export class MCPServer {
   /** BOARD.md generator */
   private boardGenerator: BoardGenerator | null = null;
 
+  /** EventBus instance */
+  private eventBus: EventBus | null = null;
+
+  /** Agent Registry instance */
+  private agentRegistry: AgentRegistry | null = null;
+
   /** Tool handlers */
   private addIssue: ReturnType<typeof createAddIssueTool> | null = null;
   private listIssues: ReturnType<typeof createListIssuesTool> | null = null;
   private updateIssue: ReturnType<typeof createUpdateIssueTool> | null = null;
   private deleteIssue: ReturnType<typeof createDeleteIssueTool> | null = null;
   private suggestIssues: ReturnType<typeof createSuggestIssuesTool> | null = null;
+  private subscribeEvents: ReturnType<typeof createSubscribeEventsTool> | null = null;
+  private unsubscribeEvents: ReturnType<typeof createUnsubscribeEventsTool> | null = null;
+  private listSubscriptions: ReturnType<typeof createListSubscriptionsTool> | null = null;
+  private invokeAgent: ReturnType<typeof createInvokeAgentTool> | null = null;
+  private getAgentInfo: ReturnType<typeof createGetAgentInfoTool> | null = null;
 
   /**
    * Creates a new MCPServer instance.
@@ -246,6 +289,36 @@ export class MCPServer {
             'Use the configured native AI provider to suggest missing work for one project. This never writes to SQLite or BOARD.md automatically.',
           inputSchema: SUGGEST_ISSUES_INPUT_SCHEMA,
         },
+        {
+          name: 'subscribe_events',
+          description:
+            'Subscribe to Karya events. Supports patterns like "db:*" for all database events, "scanner:**" for all scanner events.',
+          inputSchema: SUBSCRIBE_EVENTS_INPUT_SCHEMA,
+        },
+        {
+          name: 'unsubscribe_events',
+          description:
+            'Unsubscribe from Karya events using the subscription ID.',
+          inputSchema: UNSUBSCRIBE_EVENTS_INPUT_SCHEMA,
+        },
+        {
+          name: 'list_subscriptions',
+          description:
+            'List all active event subscriptions.',
+          inputSchema: LIST_SUBSCRIPTIONS_INPUT_SCHEMA,
+        },
+        {
+          name: 'invoke_agent',
+          description:
+            'Invoke a specialized agent to perform a task. Agents: reviewer, architect, fixer, triager.',
+          inputSchema: INVOKE_AGENT_INPUT_SCHEMA,
+        },
+        {
+          name: 'get_agent_info',
+          description:
+            'Get information about available agents and their capabilities.',
+          inputSchema: GET_AGENT_INFO_INPUT_SCHEMA,
+        },
       ],
     }));
 
@@ -280,6 +353,26 @@ export class MCPServer {
             return this.respond(
               await this.mustGet(this.suggestIssues)(args as unknown as SuggestIssuesParams)
             );
+          case 'subscribe_events':
+            return this.respond(
+              await this.mustGet(this.subscribeEvents)(args as unknown as SubscribeEventsParams)
+            );
+          case 'unsubscribe_events':
+            return this.respond(
+              await this.mustGet(this.unsubscribeEvents)(args as unknown as UnsubscribeEventsParams)
+            );
+          case 'list_subscriptions':
+            return this.respond(
+              await this.mustGet(this.listSubscriptions)()
+            );
+          case 'invoke_agent':
+            return this.respond(
+              await this.mustGet(this.invokeAgent)(args as unknown as InvokeAgentParams)
+            );
+          case 'get_agent_info':
+            return this.respond(
+              await this.mustGet(this.getAgentInfo)(args as unknown as GetAgentInfoParams)
+            );
           default:
             throw new Error(`Unknown tool: ${name}`);
         }
@@ -301,11 +394,39 @@ export class MCPServer {
   async initialize(config: KaryaConfig): Promise<void> {
     this.db = await createDatabase(config);
     this.boardGenerator = createBoardGenerator({ db: this.db, config });
+
+    // Initialize EventBus
+    this.eventBus = createEventBus({
+      maxHistorySize: 100,
+      defaultHandlerTimeout: 30000,
+      catchHandlerErrors: true,
+    });
+
+    // Connect EventBus to Database
+    this.db.setEventBus(this.eventBus);
+
+    // Initialize Agent Registry
+    this.agentRegistry = createAgentRegistry(this.db, this.eventBus);
+    await this.agentRegistry.initialize();
+
+    // Initialize existing tools
     this.addIssue = createAddIssueTool(this.db);
     this.listIssues = createListIssuesTool(this.db);
     this.updateIssue = createUpdateIssueTool(this.db);
     this.deleteIssue = createDeleteIssueTool(this.db);
     this.suggestIssues = createSuggestIssuesTool(new AiIssueSuggester(this.db));
+
+    // Initialize new event and agent tools
+    this.subscribeEvents = createSubscribeEventsTool(this.eventBus);
+    this.unsubscribeEvents = createUnsubscribeEventsTool();
+    this.listSubscriptions = createListSubscriptionsTool();
+    this.invokeAgent = createInvokeAgentTool(this.agentRegistry);
+    this.getAgentInfo = createGetAgentInfoTool(this.agentRegistry);
+
+    logger.info(
+      `MCP server initialized with ${this.agentRegistry.agentCount} agents, ` +
+      `EventBus with ${this.eventBus.subscriptionCount} subscriptions`
+    );
   }
 
   /**
@@ -321,17 +442,39 @@ export class MCPServer {
    * Stops the MCP server and closes database resources.
    */
   async stop(): Promise<void> {
+    // Clear tool handlers
     this.suggestIssues = null;
+    this.subscribeEvents = null;
+    this.unsubscribeEvents = null;
+    this.listSubscriptions = null;
+    this.invokeAgent = null;
+    this.getAgentInfo = null;
 
+    // Clear event subscriptions
+    clearAllSubscriptions();
+
+    // Dispose agent registry
+    if (this.agentRegistry) {
+      await this.agentRegistry.dispose();
+      this.agentRegistry = null;
+    }
+
+    // Dispose board generator
     if (this.boardGenerator) {
       await this.boardGenerator.dispose();
       this.boardGenerator = null;
     }
 
+    // Close database
     if (this.db) {
       this.db.close();
       this.db = null;
     }
+
+    // Clear eventBus reference
+    this.eventBus = null;
+
+    logger.info('MCP server stopped');
   }
 
   /**
